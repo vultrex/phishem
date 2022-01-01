@@ -1,0 +1,33 @@
+const Discord = require("discord.js");
+require('dotenv').config();
+const { Client, Intents } = require('discord.js');
+const client = new Client({ intents: [
+	Intents.FLAGS.GUILDS,
+	Intents.FLAGS.GUILD_MESSAGES,
+	Intents.FLAGS.GUILD_MEMBERS,
+	Intents.FLAGS.GUILD_INVITES,
+	Intents.FLAGS.GUILD_BANS,
+	Intents.FLAGS.GUILD_INVITES,
+	Intents.FLAGS.GUILD_EMOJIS_AND_STICKERS,
+	Intents.FLAGS.GUILD_VOICE_STATES
+], partials: [
+	"MESSAGE",
+	"CHANNEL",
+	"GUILD_MEMBER"
+]});
+const logs = require('discord-logs');
+logs(client);
+client.phish = require('./Func/phish')
+client.commands = new Discord.Collection();
+client.slash = new Discord.Collection();
+client.aliases = new Discord.Collection();
+
+
+
+
+["handlers", "events", "slash"].forEach(handler => {
+    require(`./handlers/${handler}`)(client);
+});
+require('./slash')(client)
+  
+client.login(process.env.token);
