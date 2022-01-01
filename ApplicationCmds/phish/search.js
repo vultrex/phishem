@@ -17,9 +17,10 @@ module.exports = {
        const domain = interaction.options._hoistedOptions[0].value.match(regex)[0]
 
         const inf = await client.phish.linkInfo(domain)
-        console.log(inf)
         if(!inf[domain] || inf[domain].classification === 'unknown') return interaction.reply({content: `Could not find any information on the domain \`${domain}\``, ephemeral: true})
         if(inf[domain].classification === 'safe') return interaction.reply({content: `The link \`${domain}\` is not flagged as a phishing site.`})
+        let embed = new MessageEmbed()
+
         let status = inf[`${domain}`].status
         if(status === 'ONLINE') {
             status = "🟢 Online"
@@ -37,11 +38,11 @@ module.exports = {
 
         let classification = inf[`${domain}`].classification
         if(classification === 'suspicious') {
+            embed.setColor("YELLOW")
             classification = "❗ Suspicious"
         } else if(classification === 'malicious') {
+            embed.setColor('RED')
             classification = "<:6371win11warningicon:926716233724870696> Malicious"
-        } else {
-            classification = "❓ Unknown"
         }
 
         let firstSeen = inf[`${domain}`].firstSeen
@@ -50,17 +51,19 @@ module.exports = {
         let lastSeen = inf[`${domain}`].lastSeen
         if(!lastSeen) lastSeen = Date.now()
 
-        interaction.reply({embeds: [ new MessageEmbed()
-                .addField("__Status__", status, true)
-                .addField("__Verified__", verified, true)
-                .addField("__Classification__", classification, true)
-                .addField("__Added__", `<t:${moment(inf[`${domain}`].created).format("X")}:F>`, true)
-                .addField("__First Seen__", `<t:${moment(firstSeen).format("X")}:F>`, true)
-                .addField("__Last Seen__", `<t:${moment(lastSeen).format("X")}:F>`, true)
-                .addField('__Domain IP__', `${inf[`${domain}`].details.ip_address ? inf[`${domain}`].details.ip_address : 'IP address not found.'}`, true)
-                .addField('__Asn Name__', inf[`${domain}`].details.asn.asn_name ? inf[`${domain}`].details.asn.asn_name : 'No asn name found.', true)
-                .setImage(inf[`${domain}`].details.websiteScreenshot)
-                .setColor('RANDOM')]})
+        embed
+            .setDescription(domain)
+            .addField("__Status__", status, true)
+            .addField("__Verified__", verified, true)
+            .addField("__Classification__", classification, true)
+            .addField("__Added__", `<t:${moment(inf[`${domain}`].created).format("X")}:F>`, true)
+            .addField("__First Seen__", `<t:${moment(firstSeen).format("X")}:F>`, true)
+            .addField("__Last Seen__", `<t:${moment(lastSeen).format("X")}:F>`, true)
+            .addField('__Domain IP__', `${inf[`${domain}`].details.ip_address ? inf[`${domain}`].details.ip_address : 'IP address not found.'}`, true)
+            .addField('__Asn Name__', inf[`${domain}`].details.asn.asn_name ? inf[`${domain}`].details.asn.asn_name : 'No asn name found.', true)
+            .setImage(inf[`${domain}`].details.websiteScreenshot)
+
+        interaction.reply({embeds: [embed]})
 
 
     }

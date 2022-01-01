@@ -1,23 +1,11 @@
 const Discord = require("discord.js");
 require('dotenv').config();
 const { Client, Intents } = require('discord.js');
-const client = new Client({ intents: [
-	Intents.FLAGS.GUILDS,
-	Intents.FLAGS.GUILD_MESSAGES,
-	Intents.FLAGS.GUILD_MEMBERS,
-	Intents.FLAGS.GUILD_INVITES,
-	Intents.FLAGS.GUILD_BANS,
-	Intents.FLAGS.GUILD_INVITES,
-	Intents.FLAGS.GUILD_EMOJIS_AND_STICKERS,
-	Intents.FLAGS.GUILD_VOICE_STATES
-], partials: [
-	"MESSAGE",
-	"CHANNEL",
-	"GUILD_MEMBER"
-]});
-const logs = require('discord-logs');
-logs(client);
-client.phish = require('./Func/phish')
+const client = new Client({
+	disableMentions: "everyone",
+	intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES, Intents.FLAGS.GUILD_MEMBERS],
+});
+client.phish = require('./Scripts/phish')
 client.commands = new Discord.Collection();
 client.slash = new Discord.Collection();
 client.aliases = new Discord.Collection();

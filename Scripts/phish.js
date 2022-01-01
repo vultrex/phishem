@@ -24,7 +24,7 @@ async function linkInfo(domain) {
 async function checkYoutube(link) {
     const response = await require('node-fetch')(link).then(res => res.text())
 
-    const linkHtmlCensors = ["nitro", "free generator"]
+    const linkHtmlCensors = ["discord nitro generator", "free nitro generator", "free discord nitro", "discord nitro code", "discord nitro codes",  "discord nitro codes generator"]
     return !!linkHtmlCensors.find(x => {
         const regex = new RegExp(`\\b${x}\\b`, 'i')
         return regex.test(response)
