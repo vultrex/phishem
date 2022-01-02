@@ -1,4 +1,10 @@
 const fetch = require('node-fetch');
+
+/**
+ *
+ * @param link The link that will get checked.
+ * @returns {Promise<any>}
+ */
 async function checkLink(link) {
     return await fetch("https://anti-fish.bitflow.dev/check", {
         method: "post",
@@ -11,6 +17,11 @@ async function checkLink(link) {
     }).then(res => res.json())
 }
 
+/**
+ *
+ * @param domain The domain link to check
+ * @returns {Promise<any>}
+ */
 async function linkInfo(domain) {
     return await fetch(`https://api.phisherman.gg/v1/domains/info/${domain}`, {
         headers: {
@@ -21,13 +32,15 @@ async function linkInfo(domain) {
     }).then(res => res.json())
 }
 
+/**
+ *
+ * @param link A youtube link that'll get scanned
+ * @returns {Promise<boolean>}
+ */
 async function checkYoutube(link) {
-    const response = await require('node-fetch')(link).then(res => res.text())
-
-    const linkHtmlCensors = ["discord nitro generator", "free nitro generator", "free discord nitro", "discord nitro code", "discord nitro codes",  "discord nitro codes generator"]
-    return !!linkHtmlCensors.find(x => {
-        const regex = new RegExp(`\\b${x}\\b`, 'i')
-        return regex.test(response)
+    return !![process.env.youtubeKeywords].find(async x => {
+        const regex = new RegExp(`\\b${x}\\b`, 'i');
+        return regex.test(await require('node-fetch')(link).then(res => res.text()))
     })
 }
 
