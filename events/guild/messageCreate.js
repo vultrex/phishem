@@ -28,7 +28,10 @@ module.exports = async (client , message) => {
             if(await client.phish.checkYoutube(message.content.match(ytLink)[0])) {
                 if(db.fetch(`${message.guild.id}.config.delete`)) message.delete({reason: "[Automod] Detected a phishing link from the user."})
                 if(db.fetch(`${message.guild.id}.config.timeout`)) await message.member.timeout(10000 * 60 * 1000, '[Automod] Detected a phishing link from the user.')
-                await client.phish.youtubeLogger(db.fetch(`${message.guild.id}.config.log.id`), db.fetch(`${message.guild.id}.config.log.token`), message.author, message.content.match(ytLink)[0], message.content, )
+
+                if(db.fetch(`${message.guild.id}.config.log.id`) && db.fetch(`${message.guild.id}.config.log.token`)) {
+                    await client.phish.youtubeLogger(db.fetch(`${message.guild.id}.config.log.id`), db.fetch(`${message.guild.id}.config.log.token`), message.author, message.content.match(ytLink)[0], message.content)
+                } else return
 
             } else {
                 return

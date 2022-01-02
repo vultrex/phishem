@@ -106,7 +106,6 @@ module.exports = {
     permissions: "MANAGE_GUILD",
     category: "phish",
     run: async(interaction,  client) => {
-        console.log(interaction.options)
         switch(interaction.options._subcommand) {
             case "get":
                 let configEmbed = new MessageEmbed()
@@ -156,7 +155,7 @@ module.exports = {
 
                     switch(value[0].value) {
                         case "ban":
-
+                            if(await client.db.fetch(`${interaction.guild.id}.config.kick`) == true) return interaction.reply({content: "<:3595failed:926715200172867624> You can't enable both kick and ban.", ephemeral: true})
                             if(await client.db.fetch(`${interaction.guild.id}.config.ban`) === true) return interaction.reply({content: "<:3595failed:926715200172867624> The configuration has already been set!", ephemeral: true})
                             else {
                                 client.db.set(`${interaction.guild.id}.config.ban`, true)
@@ -165,6 +164,7 @@ module.exports = {
 
                             break
                         case "kick":
+                            if(await client.db.fetch(`${interaction.guild.id}.config.ban`) == true) return interaction.reply({content: "<:3595failed:926715200172867624> You can't enable both kick and ban.", ephemeral: true})
                             if(await client.db.fetch(`${interaction.guild.id}.config.kick`) === true) return interaction.reply({content: "<:3595failed:926715200172867624> The configuration has already been set!", ephemeral: true})
                             else {
                                 client.db.set(`${interaction.guild.id}.config.kick`, true)
@@ -222,8 +222,8 @@ module.exports = {
                             if(await client.channels.cache.get(await client.db.fetch(`${interaction.guild.id}.config.log.channelId`))) {
                                 const loggerWebhook = await client.channels.cache.get(await client.db.fetch(`${interaction.guild.id}.config.log.channelId`)).fetchWebhooks()
                                 const deleteFilter = loggerWebhook.filter(webhook => webhook.owner.id === client.user.id && webhook.name === 'Phish Logger')
-                                if (deleteFilter.size === 0) return
-                                for (let [id, webhook] of deleteFilter) await webhook.delete();
+                                if(deleteFilter) for (let [id, webhook] of deleteFilter) await webhook.delete();
+
                             }
                             client.db.delete(`${interaction.guild.id}.config.log.channelId`)
                             client.db.delete(`${interaction.guild.id}.config.log.id`)
@@ -247,8 +247,8 @@ module.exports = {
                             if(await client.channels.cache.get(await client.db.fetch(`${interaction.guild.id}.config.log.channelId`))) {
                                 const loggerWebhook = await client.channels.cache.get(await client.db.fetch(`${interaction.guild.id}.config.log.channelId`)).fetchWebhooks()
                                 const deleteFilter = loggerWebhook.filter(webhook => webhook.owner.id === client.user.id && webhook.name === 'Phish Logger')
-                                if (deleteFilter.size === 0) return
-                                for (let [id, webhook] of deleteFilter) await webhook.delete();
+                                if(deleteFilter) for (let [id, webhook] of deleteFilter) await webhook.delete();
+
                             }
                                 client.db.delete(`${interaction.guild.id}.config.delete`)
                                 client.db.delete(`${interaction.guild.id}.config.log.channelId`)
