@@ -5,7 +5,7 @@ const humanizeDuration = require("humanize-duration");
 module.exports = async(client, interaction) => {
 	if (interaction.isCommand() || interaction.isContextMenu()) {
 		if (!client.slash.has(interaction.commandName)) return;
-		if (!interaction.guild) return;
+		if (!interaction.guild) return interaction.reply({content: "Slash commands can only be used in a server."});
 		const command = client.slash.get(interaction.commandName)
 		try {
 

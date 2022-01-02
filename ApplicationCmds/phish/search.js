@@ -13,9 +13,11 @@ module.exports = {
     ],
     category: "phish",
     run: async(interaction, client) => {
+        try {
+
+
         const regex = new RegExp(/(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]?/gi);
        const domain = interaction.options._hoistedOptions[0].value.match(regex)[0]
-
         const inf = await client.phish.linkInfo(domain)
         if(!inf[domain] || inf[domain].classification === 'unknown') return interaction.reply({content: `Could not find any information on the domain \`${domain}\``, ephemeral: true})
         if(inf[domain].classification === 'safe') return interaction.reply({content: `The link \`${domain}\` is not flagged as a phishing site.`})
@@ -65,6 +67,8 @@ module.exports = {
 
         interaction.reply({embeds: [embed]})
 
-
+        } catch(e) {
+            return interaction.reply({content: "Looks like something went wrong. Make sure you're inputting a domain or link.", ephemeral: true})
+        }
     }
 }
