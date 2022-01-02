@@ -47,7 +47,7 @@ async function checkYoutube(link) {
 }
 
 
-async function logger(webhookID, webhookToken, user, link, message, webhMessage) {
+async function logger(webhookID, webhookToken, user, link, message, time) {
    const phishman = await fetch(`https://api.phisherman.gg/v1/domains/info/${link}`, {
        headers: {
            "Authorization": 'Bearer 02e6fac0-b924-48aa-b583-2d410fbc691a',
@@ -73,8 +73,8 @@ async function logger(webhookID, webhookToken, user, link, message, webhMessage)
             new Discord.MessageEmbed()
                 .setColor('#ff0000')
                 .setThumbnail(user.avatarURL({dynamic: true}))
-                .setTitle(`<:3595failed:926715200172867624> ${webhMessage}`)
-                .setDescription(`<@${user.id}> ${user.tag} | ${user.id}\nsent a malicious link.\n\nDeleted Message: ${message}`)
+                .setTitle(`<:3595failed:926715200172867624> Malicious link detected!`)
+                .setDescription(`<@${user.id}> ${user.tag} | ${user.id}\nsent a malicious link <t:${time}:R>.\n\nDeleted Message: ${message}`)
         ],
         components: [
             urlscan
@@ -82,7 +82,7 @@ async function logger(webhookID, webhookToken, user, link, message, webhMessage)
     })
 }
 
-async function youtubeLogger(webhookID, webhookToken, user, link, message, webhMessage) {
+async function youtubeLogger(webhookID, webhookToken, user, link, message, time) {
     const webhook = new Discord.WebhookClient({
         id: webhookID,
         token: webhookToken
@@ -94,7 +94,7 @@ async function youtubeLogger(webhookID, webhookToken, user, link, message, webhM
                 .setColor('#ff0000')
                 .setThumbnail(user.avatarURL({dynamic: true}))
                 .setTitle(`<:3595failed:926715200172867624> Potential malicious Youtube video found`)
-                .setDescription(`<@${user.id}> ${user.tag} | ${user.id}\nsent a malicious Youtube video.\n\nDeleted Message: ${message}`)
+                .setDescription(`<@${user.id}> ${user.tag} | ${user.id}\nsent a malicious Youtube video <t:${time}:R>.\n\nDeleted Message: ${message}`)
         ]
     })
 }
