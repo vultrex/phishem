@@ -21,6 +21,7 @@
   },
   "devDependencies": {
     "discord-api-types": "^0.26.0",
+    "mongodb": "^4.2.2",
     "nodemon": "^2.0.15"
   }
 }

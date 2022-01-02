@@ -1,4 +1,4 @@
-const {MessageEmbed} = require("discord.js");
+const {MessageEmbed, MessageActionRow, MessageButton} = require("discord.js");
 const moment = require('moment')
 module.exports = {
     name: "search",
@@ -20,7 +20,7 @@ module.exports = {
        const domain = interaction.options._hoistedOptions[0].value.match(regex)[0]
         const inf = await client.phish.linkInfo(domain)
         if(!inf[domain] || inf[domain].classification === 'unknown') return interaction.reply({content: `Could not find any information on the domain \`${domain}\``, ephemeral: true})
-        if(inf[domain].classification === 'safe') return interaction.reply({content: `The link \`${domain}\` is not flagged as a phishing site.`})
+        if(inf[domain].classification === 'safe') return interaction.reply({embeds: [new MessageEmbed().setDescription(domain).addField('Classification', '<:2585modshieldlightgreenicon:927289585761927168> Safe').setColor('GREEN')]})
         let embed = new MessageEmbed()
 
         let status = inf[`${domain}`].status
@@ -52,7 +52,13 @@ module.exports = {
 
         let lastSeen = inf[`${domain}`].lastSeen
         if(!lastSeen) lastSeen = Date.now()
-
+            const urlscan = new MessageActionRow()
+                .addComponents(new MessageButton()
+                    .setURL(`https://urlscan.io/result/${inf[`${domain}`].details.urlScanId}`)
+                    .setLabel('UrlScan')
+                    .setEmoji('🛠️')
+                    .setStyle(5),
+                )
         embed
             .setDescription(domain)
             .addField("__Status__", status, true)
@@ -65,7 +71,7 @@ module.exports = {
             .addField('__Asn Name__', inf[`${domain}`].details.asn.asn_name ? inf[`${domain}`].details.asn.asn_name : 'No asn name found.', true)
             .setImage(inf[`${domain}`].details.websiteScreenshot)
 
-        interaction.reply({embeds: [embed]})
+        interaction.reply({embeds: [embed], components: [urlscan]})
 
         } catch(e) {
             return interaction.reply({content: "Looks like something went wrong. Make sure you're inputting a domain or link.", ephemeral: true})

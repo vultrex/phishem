@@ -13,13 +13,23 @@ module.exports = async (client , message) => {
         const bitData = await client.phish.checkLink(message.content)
 
         if(bitData.match) {
-            if(db.fetch(`${message.guild.id}delete`)) message.delete()
-            
+            if(db.fetch(`${message.guild.id}.config.delete`)) message.delete({reason: "[Automod] Detected a phishing link from the user."})
+            if(db.fetch(`${message.guild.id}.config.ban`)) await message.member.ban({reason: `[Automod] Detected a phishing link from the user.`})
+            if(db.fetch(`${message.guild.id}.config.kick`)) await message.member.kick({reason: `[Automod] Detected a phishing link from the user.`})
+            if(db.fetch(`${message.guild.id}.config.timeout`)) await message.member.timeout(10000 * 60 * 1000, '[Automod] Detected a phishing link from the user.')
 
-        } else if(youtubeRegex.test(message.content)) {
+            if(db.fetch(`${message.guild.id}.config.log.id`) &&db.fetch(`${message.guild.id}.config.log.token`)) {
+
+                await client.phish.logger(db.fetch(`${message.guild.id}.config.log.id`), db.fetch(`${message.guild.id}.config.log.token`), message.author, bitData.matches.map(m => m.domain), message.content, "Malicious link detected.")
+            }
+
+        } else if(youtubeRegex.test(message.content) && db.fetch(`${message.guild.id}.config.youtube`)) {
             const ytLink = new RegExp(/(https?:\/\/[^\s]+)/g)
             if(await client.phish.checkYoutube(message.content.match(ytLink)[0])) {
-                return message.channel.send({content: 'Potential scam youtube video'})
+                if(db.fetch(`${message.guild.id}.config.delete`)) message.delete({reason: "[Automod] Detected a phishing link from the user."})
+                if(db.fetch(`${message.guild.id}.config.timeout`)) await message.member.timeout(10000 * 60 * 1000, '[Automod] Detected a phishing link from the user.')
+                await client.phish.youtubeLogger(db.fetch(`${message.guild.id}.config.log.id`), db.fetch(`${message.guild.id}.config.log.token`), message.author, message.content.match(ytLink)[0], message.content, )
+
             } else {
                 return
             }

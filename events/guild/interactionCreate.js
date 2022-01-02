@@ -22,9 +22,9 @@ module.exports = async(client, interaction) => {
 				if (!interaction.member.permissions.has(command.permissions)) {
 					const embed = new MessageEmbed()
 						.setTitle('You\'re missing permissions!')
+						.setThumbnail(interaction.member.user.avatarURL({dynamic: true}))
 						.setDescription(`<:3595failed:926715200172867624> You need \`${command.permissions}\` to use this command`)
 						.setColor('#ff0000')
-						.setFooter(interaction.user.tag, interaction.user.displayAvatarURL({dynamic: true}))
 						.setTimestamp()
 					return interaction.reply({embeds: [embed], ephemeral: true})
 				}

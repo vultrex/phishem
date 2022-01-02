@@ -1,4 +1,6 @@
 const fetch = require('node-fetch');
+const Discord = require("discord.js");
+const {MessageActionRow, MessageButton, MessageEmbed} = require("discord.js");
 
 /**
  *
@@ -11,7 +13,7 @@ async function checkLink(link) {
         body: JSON.stringify({message: link}),
         headers: {
             "Content-Type": "application/json",
-            "User-Agent": "Phish Systems (Nek#2937 / 750510159289254008)",
+            "User-Agent": "Phishem (Nek#2937 / 750510159289254008)",
         },
 
     }).then(res => res.json())
@@ -27,7 +29,7 @@ async function linkInfo(domain) {
         headers: {
             "Authorization": 'Bearer 02e6fac0-b924-48aa-b583-2d410fbc691a',
             'Content-Type': 'application/json',
-            "User-Agent": "Phish Systems (Nek#2937 / 750510159289254008)",
+            "User-Agent": "Phishem (Nek#2937 / 750510159289254008)",
         },
     }).then(res => res.json())
 }
@@ -44,8 +46,63 @@ async function checkYoutube(link) {
     })
 }
 
+
+async function logger(webhookID, webhookToken, user, link, message, webhMessage) {
+   const phishman = await fetch(`https://api.phisherman.gg/v1/domains/info/${link}`, {
+       headers: {
+           "Authorization": 'Bearer 02e6fac0-b924-48aa-b583-2d410fbc691a',
+           'Content-Type': 'application/json',
+           "User-Agent": "Phishem (Nek#2937 / 750510159289254008)",
+       },
+   }).then(res => res.json())
+
+    const urlscan = new MessageActionRow()
+        .addComponents(new MessageButton()
+            .setURL(`https://urlscan.io/result/${phishman[link].details.urlScanId}`)
+            .setLabel('UrlScan')
+            .setEmoji('🛠️')
+            .setStyle(5),
+        )
+    const webhook = new Discord.WebhookClient({
+        id: webhookID,
+        token: webhookToken
+    });
+
+    await webhook.send({
+        embeds: [
+            new Discord.MessageEmbed()
+                .setColor('#ff0000')
+                .setThumbnail(user.avatarURL({dynamic: true}))
+                .setTitle(`<:3595failed:926715200172867624> ${webhMessage}`)
+                .setDescription(`<@${user.id}> ${user.tag} | ${user.id}\nsent a malicious link.\n\nDeleted Message: ${message}`)
+        ],
+        components: [
+            urlscan
+        ]
+    })
+}
+
+async function youtubeLogger(webhookID, webhookToken, user, link, message, webhMessage) {
+    const webhook = new Discord.WebhookClient({
+        id: webhookID,
+        token: webhookToken
+    });
+
+    await webhook.send({
+        embeds: [
+            new Discord.MessageEmbed()
+                .setColor('#ff0000')
+                .setThumbnail(user.avatarURL({dynamic: true}))
+                .setTitle(`<:3595failed:926715200172867624> Potential malicious Youtube video found`)
+                .setDescription(`<@${user.id}> ${user.tag} | ${user.id}\nsent a malicious Youtube video.\n\nDeleted Message: ${message}`)
+        ]
+    })
+}
+
 module.exports = {
     checkLink,
     linkInfo,
-    checkYoutube
+    checkYoutube,
+    logger,
+    youtubeLogger
 }
