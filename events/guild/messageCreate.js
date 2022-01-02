@@ -1,5 +1,5 @@
 const Timeout = new Set();
-const { MessageEmbed } = require('discord.js')
+const { MessageEmbed, Permissions } = require('discord.js')
 const humanizeDuration = require("humanize-duration");
 const prefix = process.env.prefix
 const db = require('quick.db')
@@ -13,6 +13,9 @@ module.exports = async (client , message) => {
         const bitData = await client.phish.checkLink(message.content)
 
         if(bitData.match) {
+            if (message.member.permissions.has(Permissions.FLAGS.ADMINISTRATOR) || message.member.permissions.has(Permissions.FLAGS.MANAGE_GUILD) || message.member.permissions.has(Permissions.FLAGS.MANAGE_CHANNELS) || message.member.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return;
+
+
             if(db.fetch(`${message.guild.id}.config.delete`)) message.delete({reason: "[Automod] Detected a phishing link from the user."})
             if(db.fetch(`${message.guild.id}.config.ban`)) await message.member.ban({reason: `[Automod] Detected a phishing link from the user.`})
             if(db.fetch(`${message.guild.id}.config.kick`)) await message.member.kick({reason: `[Automod] Detected a phishing link from the user.`})
@@ -24,6 +27,7 @@ module.exports = async (client , message) => {
             }
 
         } else if(youtubeRegex.test(message.content) && db.fetch(`${message.guild.id}.config.youtube`)) {
+            if (message.member.permissions.has(Permissions.FLAGS.ADMINISTRATOR) || message.member.permissions.has(Permissions.FLAGS.MANAGE_GUILD) || message.member.permissions.has(Permissions.FLAGS.MANAGE_CHANNELS) || message.member.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return;
             const ytLink = new RegExp(/(https?:\/\/[^\s]+)/g)
             if(await client.phish.checkYoutube(message.content.match(ytLink)[0])) {
                 if(db.fetch(`${message.guild.id}.config.delete`)) message.delete({reason: "[Automod] Detected a phishing link from the user."})
