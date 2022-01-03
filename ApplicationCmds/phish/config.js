@@ -325,7 +325,7 @@ module.exports = {
                     if (web) {
                         return interaction.reply({content: "Looks like logging is already enabled!", ephemeral: true})
                     } else {
-                        if (await client.db.fetch(`${interaction.guild.id}.config.log.id`) && await client.db.fetch(`${interaction.guild.id}.config.log.token`)) {
+                        if (data.log.webhookID && data.log.webhookToken) {
                             return interaction.reply({
                                 content: "Looks like logging is already enabled on a different channel! If you wish to change channels, please reset the configuration and run this command again.",
                                 ephemeral: true
@@ -350,15 +350,16 @@ module.exports = {
 
                     switch (value[0].value) {
                         case "delete":
-                            client.db.delete(`${interaction.guild.id}.config.delete`)
+                            data.config.delete = false
+                            data.save()
                             interaction.reply({
                                 content: "<:9294passed:926715199950561341> The configuration has been reset!",
                                 ephemeral: true
                             })
                             break
                         case "log":
-                            if (await client.channels.cache.get(await client.db.fetch(`${interaction.guild.id}.config.log.channelId`))) {
-                                const loggerWebhook = await client.channels.cache.get(await client.db.fetch(`${interaction.guild.id}.config.log.channelId`)).fetchWebhooks()
+                            if (await client.channels.cache.get(data.log.webhookChannelID)) {
+                                const loggerWebhook = await client.channels.cache.get(data.log.webhookChannelID).fetchWebhooks()
                                 const deleteFilter = loggerWebhook.filter(webhook => webhook.owner.id === client.user.id && webhook.name === 'Phish Logger')
                                 if (deleteFilter) for (let [id, webhook] of deleteFilter) await webhook.delete();
 
@@ -394,8 +395,8 @@ module.exports = {
                             break
                         case "all":
 
-                            if (await client.channels.cache.get(await client.db.fetch(`${interaction.guild.id}.config.log.channelId`))) {
-                                const loggerWebhook = await client.channels.cache.get(await client.db.fetch(`${interaction.guild.id}.config.log.channelId`)).fetchWebhooks()
+                            if (await client.channels.cache.get(data.log.webhookChannelID)) {
+                                const loggerWebhook = await client.channels.cache.get(data.log.webhookChannelID).fetchWebhooks()
                                 const deleteFilter = loggerWebhook.filter(webhook => webhook.owner.id === client.user.id && webhook.name === 'Phish Logger')
                                 if (deleteFilter) for (let [id, webhook] of deleteFilter) await webhook.delete();
 

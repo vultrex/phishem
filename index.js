@@ -7,7 +7,6 @@ client = new Client({
 require('dotenv').config();
 
 client.phish = require('./Scripts/phish')
-client.db = require('quick.db')
 client.commands = new Collection();
 client.slash = new Collection();
 client.aliases = new Collection();
