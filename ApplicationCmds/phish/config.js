@@ -1,4 +1,5 @@
-const { MessageEmbed, Permissions } = require('discord.js');
+const { MessageEmbed, Permissions } = require('discord.js'),
+    Schema = require("../../Database/Schema/Guild")
 
 module.exports = {
     name: "configure",
@@ -108,11 +109,15 @@ module.exports = {
     run: async(interaction,  client) => {
         switch(interaction.options._subcommand) {
             case "get":
-                let configEmbed = new MessageEmbed()
-                    .setTitle(`The current configuration for \`${interaction.guild.name}\``)
-                    .setColor(0x00AE86)
-                    .setDescription(`\`\`\`diff\n++++ Server Configurations ++++\n${await client.db.fetch(`${interaction.guild.id}.config.delete`) ? "+" : "-"} Delete Links: ${await client.db.fetch(`${interaction.guild.id}.config.delete`) ? "On" : "Off"}\n${await client.db.fetch(`${interaction.guild.id}.config.youtube`) ? "+" : "-"} Youtube Filter: ${await client.db.fetch(`${interaction.guild.id}.config.youtube`) ? "On" : "Off"}\n${await client.db.fetch(`${interaction.guild.id}.config.log.id`) ? "+" : "-"} Logging: ${await client.db.fetch(`${interaction.guild.id}.config.log.id`) ? "On" : "Off"}\n  Actions:\n${await client.db.fetch(`${interaction.guild.id}.config.ban`) ? "+" : "-"} Ban: ${await client.db.fetch(`${interaction.guild.id}.config.ban`) ? "On" : "off"}\n${await client.db.fetch(`${interaction.guild.id}.config.kick`) ? "+" : "-"} Kick: ${await client.db.fetch(`${interaction.guild.id}.config.kick`) ? "On" : "Off"}\n${await client.db.fetch(`${interaction.guild.id}.config.timeout`) ? "+" : "-"} Timeout: ${await client.db.fetch(`${interaction.guild.id}.config.guild`) ? "On" : "Off"}\`\`\``)
-                interaction.reply({embeds: [configEmbed]});
+                Schema.findOne({id: interaction.guild.id}, async (err, data) => {
+                    if(data) {
+                        let configEmbed = new MessageEmbed()
+                            .setTitle(`The current configuration for \`${interaction.guild.name}\``)
+                            .setColor(0x00AE86)
+                            .setDescription(`\`\`\`diff\n++++ Server Configurations ++++\n${data.config.delete ? "+" : "-"} Delete Links: ${data.config.delete ? "On" : "Off"}\n${data.config.youtube_filter ? "+" : "-"} Youtube Filter: ${data.config.youtube_filter ? "On" : "Off"}\n${data.log.webhookID && data.log.webhookToken ? "+" : "-"} Logging: ${data.log.webhookID && data.log.webhookToken ? "On" : "Off"}\n  Actions:\n${data.config.action_ban ? "+" : "-"} Ban: ${data.config.action_ban ? "On" : "off"}\n${data.config.action_kick ? "+" : "-"} Kick: ${data.config.action_kick ? "On" : "Off"}\n${data.config.action_timeout ? "+" : "-"} Timeout: ${data.config.action_timeout ? "On" : "Off"}\`\`\``)
+                        interaction.reply({embeds: [configEmbed]});
+                    }
+                })
                 break
 
             case "bypass":
@@ -139,147 +144,285 @@ module.exports = {
         if(value[0]) {
             if(!value[0]) return interaction.reply({content: "<:3595failed:926715200172867624> You must specify a option!", ephemeral: true})
             if(value.length > 1) return interaction.reply({content: "<:3595failed:926715200172867624> You can only specify one option!", ephemeral: true})
-            switch(interaction.options._hoistedOptions[0].name) {
 
+            Schema.findOne({id: interaction.guild.id}, async (err, data) => {
+
+            switch(interaction.options._hoistedOptions[0].name) {
                 case "delete":
-                    if(!interaction.guild.me.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES)) return interaction.reply({content: "<:3595failed:926715200172867624> I don't have the `Manage Messages` permission!", ephemeral: true})
-                    if(!interaction.options._hoistedOptions[0].value) {
-                        client.db.delete(`${interaction.guild.id}.config.delete`)
-                        return interaction.reply({content: "<:9294passed:926715199950561341> The delete links has been turned off!", ephemeral: true})
+                    if (!interaction.guild.me.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES)) return interaction.reply({
+                        content: "<:3595failed:926715200172867624> I don't have the `Manage Messages` permission!",
+                        ephemeral: true
+                    })
+                    if (!interaction.options._hoistedOptions[0].value) {
+
+
+                            if (data) {
+                                if (data.config.delete) {
+                                    data.config.delete = false
+                                    await data.save()
+                                    return interaction.reply({
+                                        content: "<:9294passed:926715199950561341> The delete links has been turned off!",
+                                        ephemeral: true
+                                    })
+
+                                }
+                            }
+
+
+
+                    } else {
+
+                            if (data) {
+                                data.config.delete = true
+                                await data.save()
+                                return interaction.reply({
+                                    content: "<:9294passed:926715199950561341> The detected phishing or malicious links will now be deleted.",
+                                    ephemeral: true
+                                })
+                            }
+
                     }
-                    client.db.set(`${interaction.guild.id}.config.delete`, interaction.options._hoistedOptions[0].value)
-                    interaction.reply({content: "<:9294passed:926715199950561341> The detected phishing or malicious links will now be deleted.", ephemeral: true})
+
+
                     break
                 case "youtube-filter":
-                    if(!interaction.guild.me.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES)) return interaction.reply({content: "<:3595failed:926715200172867624> I don't have the `Manage Messages` permission!", ephemeral: true})
-                    if(!interaction.options._hoistedOptions[0].value) {
-                        client.db.delete(`${interaction.guild.id}.config.YouTube`)
-                        return interaction.reply({content: "<:9294passed:926715199950561341> The YouTube filter has been turned off.", ephemeral: true})
-                    }
+                    if (!interaction.guild.me.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES)) return interaction.reply({
+                        content: "<:3595failed:926715200172867624> I don't have the `Manage Messages` permission!",
+                        ephemeral: true
+                    })
+                    if (!interaction.options._hoistedOptions[0].value) {
 
-                    if(await client.db.fetch(`${interaction.guild.id}.config.youtube`)) return interaction.reply({content: "<:3595failed:926715200172867624> Youtube links are already being filtered.", ephemeral: true})
-                    client.db.set(`${interaction.guild.id}.config.youtube`, interaction.options._hoistedOptions[0].value)
-                    interaction.reply({content: "<:9294passed:926715199950561341> Successfully configured, I will now filter youtube videos that get sent.", ephemeral: true})
+                            if (data) {
+                                if (data.config.youtube_filter) {
+                                    data.config.youtube_filter = false
+                                    await data.save()
+                                    return interaction.reply({
+                                        content: "<:9294passed:926715199950561341> The youtube filters have been turned off.",
+                                        ephemeral: true
+                                    })
+
+                                }
+                            }
+
+
+                    } else {
+
+
+                            if (data) {
+                                data.config.youtube_filter = true
+                                await data.save()
+                                return interaction.reply({
+                                    content: "<:9294passed:926715199950561341> Successfully configured, I will now filter youtube videos that get sent.",
+                                    ephemeral: true
+                                })
+                            }
+
+
+                    }
                     break
                 case "action":
 
-                    switch(value[0].value) {
+                    switch (value[0].value) {
                         case "ban":
-                            if(await client.db.fetch(`${interaction.guild.id}.config.kick`) == true) return interaction.reply({content: "<:3595failed:926715200172867624> You can't enable both kick and ban.", ephemeral: true})
-                            if(await client.db.fetch(`${interaction.guild.id}.config.ban`) === true) return interaction.reply({content: "<:3595failed:926715200172867624> The configuration has already been set!", ephemeral: true})
-                            else {
-                                if(!interaction.guild.me.permissions.has(Permissions.FLAGS.BAN_MEMBERS)) return interaction.reply({content: "<:3595failed:926715200172867624> I don't have the `Manage Messages` permission!", ephemeral: true})
-                                client.db.set(`${interaction.guild.id}.config.ban`, true)
-                                interaction.reply({content: "<:9294passed:926715199950561341> Configuration updated!", ephemeral: true})
-                            }
+
+
+                                if (data) {
+                                    if (data.config.action_kick) return interaction.reply({
+                                        content: "<:3595failed:926715200172867624> You can't enable both kick and ban.",
+                                        ephemeral: true
+                                    })
+                                    if (data.config.action_ban) return interaction.reply({
+                                        content: "<:3595failed:926715200172867624> The configuration has already been set!",
+                                        ephemeral: true
+                                    })
+                                    else {
+                                        if (!interaction.guild.me.permissions.has(Permissions.FLAGS.BAN_MEMBERS)) return interaction.reply({
+                                            content: "<:3595failed:926715200172867624> I don't have the `Ban Members` permission!",
+                                            ephemeral: true
+                                        })
+                                        data.config.action_ban = true
+                                        await data.save()
+                                        return interaction.reply({
+                                            content: "<:9294passed:926715199950561341> Configuration updated!",
+                                            ephemeral: true
+                                        })
+                                    }
+                                }
+
 
                             break
                         case "kick":
-                            if(await client.db.fetch(`${interaction.guild.id}.config.ban`) == true) return interaction.reply({content: "<:3595failed:926715200172867624> You can't enable both kick and ban.", ephemeral: true})
-                            if(await client.db.fetch(`${interaction.guild.id}.config.kick`) === true) return interaction.reply({content: "<:3595failed:926715200172867624> The configuration has already been set!", ephemeral: true})
-                            else {
-                                if(!interaction.guild.me.permissions.has(Permissions.FLAGS.KICK_MEMBERS)) return interaction.reply({content: "<:3595failed:926715200172867624> I don't have the `Manage Messages` permission!", ephemeral: true})
-                                client.db.set(`${interaction.guild.id}.config.kick`, true)
-                                interaction.reply({content: "<:9294passed:926715199950561341> Configuration updated!", ephemeral: true})
-                            }
+
+                                if (data) {
+                                    if (data.config.action_ban) return interaction.reply({
+                                        content: "<:3595failed:926715200172867624> You can't enable both kick and ban.",
+                                        ephemeral: true
+                                    })
+                                    if (data.config.action_kick) return interaction.reply({
+                                        content: "<:3595failed:926715200172867624> The configuration has already been set!",
+                                        ephemeral: true
+                                    })
+                                    else {
+                                        if (!interaction.guild.me.permissions.has(Permissions.FLAGS.KICK_MEMBERS)) return interaction.reply({
+                                            content: "<:3595failed:926715200172867624> I don't have the `Kick Members` permission!",
+                                            ephemeral: true
+                                        })
+                                        data.config.action_kick = true
+                                        await data.save()
+                                        return interaction.reply({
+                                            content: "<:9294passed:926715199950561341> Configuration updated!",
+                                            ephemeral: true
+                                        })
+                                    }
+                                }
+
                             break;
                         case "timeout":
-                            if(await client.db.fetch(`${interaction.guild.id}.config.timeout`) === true) return interaction.reply({content: "<:3595failed:926715200172867624> The configuration has already been set!", ephemeral: true})
-                            else {
-                                if(!interaction.guild.me.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return interaction.reply({content: "<:3595failed:926715200172867624> I don't have the `Manage Messages` permission!", ephemeral: true})
-                                client.db.set(`${interaction.guild.id}.config.timeout`, true)
-                                interaction.reply({content: "<:9294passed:926715199950561341> Configuration updated!", ephemeral: true})
-                            }
+
+
+                                if (data) {
+                                    if (data.config.action_timeout) return interaction.reply({
+                                        content: "<:3595failed:926715200172867624> The configuration has already been set!",
+                                        ephemeral: true
+                                    })
+                                    else {
+                                        if (!interaction.guild.me.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return interaction.reply({
+                                            content: "<:3595failed:926715200172867624> I don't have the `Moderate Members` permission!",
+                                            ephemeral: true
+                                        })
+                                        data.config.action_timeout = true
+                                        await data.save()
+                                        return interaction.reply({
+                                            content: "<:9294passed:926715199950561341> Configuration updated!",
+                                            ephemeral: true
+                                        })
+                                    }
+                                }
+
                             break;
                         case "reset":
-                            client.db.delete(`${interaction.guild.id}.config.ban`)
-                            client.db.delete(`${interaction.guild.id}.config.kick`)
-                            client.db.delete(`${interaction.guild.id}.config.timeout`)
-                            interaction.reply({content: "<:9294passed:926715199950561341> Configurations have been reset!", ephemeral: true})
+                            data.config.action_ban = false
+                            data.config.action_kick = false
+                            data.config.action_timeout = false
+                            await data.save()
+                            interaction.reply({
+                                content: "<:9294passed:926715199950561341> Configurations have been reset!",
+                                ephemeral: true
+                            })
                             break;
                     }
                     break
 
                 case "log":
                     const channel = await client.channels.cache.get(interaction.options._hoistedOptions[0].value)
-                    if(channel.type !== "GUILD_TEXT") return interaction.reply({content: "<:3595failed:926715200172867624> The channel must be a text channel!", ephemeral: true})
+                    if (channel.type !== "GUILD_TEXT") return interaction.reply({
+                        content: "<:3595failed:926715200172867624> The channel must be a text channel!",
+                        ephemeral: true
+                    })
                     const webhooks = await channel.fetchWebhooks();
                     const web = webhooks.find(wh => wh.owner.id === client.user.id);
 
-                    if(web) {
+                    if (web) {
                         return interaction.reply({content: "Looks like logging is already enabled!", ephemeral: true})
                     } else {
-                        if(await client.db.fetch(`${interaction.guild.id}.config.log.id`) && await client.db.fetch(`${interaction.guild.id}.config.log.token`)) {
-                            return interaction.reply({content: "Looks like logging is already enabled on a different channel! If you wish to change channels, please reset the configuration and run this command again.", ephemeral: true})
+                        if (data.log.webhookID && data.log.webhookToken) {
+                            return interaction.reply({
+                                content: "Looks like logging is already enabled on a different channel! If you wish to change channels, please reset the configuration and run this command again.",
+                                ephemeral: true
+                            })
                         }
                         const webhook = await channel.createWebhook('Phish Logger', {
                             avatar: client.user.avatarURL({format: 'png'}),
                         })
-                        client.db.set(`${interaction.guild.id}.config.log.channelId`, channel.id)
-                        client.db.set(`${interaction.guild.id}.config.log.id`, webhook.id)
-                        client.db.set(`${interaction.guild.id}.config.log.token`, webhook.token)
-
-                        interaction.reply({content: `<:9294passed:926715199950561341> \`${channel.name}\` has been set as the log channel.`, ephemeral: true})
+                        data.log.webhookID = webhook.id
+                        data.log.webhookToken = webhook.token
+                        data.log.webhookChannelID = channel.id
+                        data.save()
+                        interaction.reply({
+                            content: `<:9294passed:926715199950561341> \`${channel.name}\` has been set as the log channel.`,
+                            ephemeral: true
+                        })
                     }
 
                     break;
 
                 case "configurations":
 
-                    switch(value[0].value) {
+                    switch (value[0].value) {
                         case "delete":
-                            client.db.delete(`${interaction.guild.id}.config.delete`)
-                            interaction.reply({content: "<:9294passed:926715199950561341> The configuration has been reset!", ephemeral: true})
+                            data.config.delete = false
+                            data.save()
+                            interaction.reply({
+                                content: "<:9294passed:926715199950561341> The configuration has been reset!",
+                                ephemeral: true
+                            })
                             break
                         case "log":
-                            if(await client.channels.cache.get(await client.db.fetch(`${interaction.guild.id}.config.log.channelId`))) {
-                                const loggerWebhook = await client.channels.cache.get(await client.db.fetch(`${interaction.guild.id}.config.log.channelId`)).fetchWebhooks()
+                            if (await client.channels.cache.get(data.log.webhookChannelID)) {
+                                const loggerWebhook = await client.channels.cache.get(data.log.webhookChannelID).fetchWebhooks()
                                 const deleteFilter = loggerWebhook.filter(webhook => webhook.owner.id === client.user.id && webhook.name === 'Phish Logger')
-                                if(deleteFilter) for (let [id, webhook] of deleteFilter) await webhook.delete();
+                                if (deleteFilter) for (let [id, webhook] of deleteFilter) await webhook.delete();
 
                             }
-                            client.db.delete(`${interaction.guild.id}.config.log.channelId`)
-                            client.db.delete(`${interaction.guild.id}.config.log.id`)
-                            client.db.delete(`${interaction.guild.id}.config.log.token`)
-                            client.db.delete(`${interaction.guild.id}.config.log.channelId`)
 
-                            interaction.reply({content: "<:9294passed:926715199950561341> The configuration has been reset!", ephemeral: true})
+                            data.log.webhookID = null
+                            data.log.webhookID = null
+                            data.log.webhookChannelID = null
+                            await data.save()
+
+                            interaction.reply({
+                                content: "<:9294passed:926715199950561341> The configuration has been reset!",
+                                ephemeral: true
+                            })
                             break
                         case "action":
-                            client.db.delete(`${interaction.guild.id}.config.ban`)
-                            client.db.delete(`${interaction.guild.id}.config.kick`)
-                            client.db.delete(`${interaction.guild.id}.config.timeout`)
-                            interaction.reply({content: "<:9294passed:926715199950561341> The configuration has been reset!", ephemeral: true})
+                            data.config.action_ban = false
+                            data.config.action_kick = false
+                            data.config.action_timeout = false
+                            await data.save()
+                            interaction.reply({
+                                content: "<:9294passed:926715199950561341> The configuration has been reset!",
+                                ephemeral: true
+                            })
                             break
                         case "youtube":
-                            client.db.delete(`${interaction.guild.id}.config.youtube`)
-                            interaction.reply({content: "<:9294passed:926715199950561341> The configuration has been reset!", ephemeral: true})
+                            data.config.youtube_filter = false
+                            data.save()
+                            interaction.reply({
+                                content: "<:9294passed:926715199950561341> The configuration has been reset!",
+                                ephemeral: true
+                            })
                             break
                         case "all":
 
-                            if(await client.channels.cache.get(await client.db.fetch(`${interaction.guild.id}.config.log.channelId`))) {
-                                const loggerWebhook = await client.channels.cache.get(await client.db.fetch(`${interaction.guild.id}.config.log.channelId`)).fetchWebhooks()
+                            if (await client.channels.cache.get(data.log.webhookChannelID)) {
+                                const loggerWebhook = await client.channels.cache.get(data.log.webhookChannelID).fetchWebhooks()
                                 const deleteFilter = loggerWebhook.filter(webhook => webhook.owner.id === client.user.id && webhook.name === 'Phish Logger')
-                                if(deleteFilter) for (let [id, webhook] of deleteFilter) await webhook.delete();
+                                if (deleteFilter) for (let [id, webhook] of deleteFilter) await webhook.delete();
 
                             }
-                                client.db.delete(`${interaction.guild.id}.config.delete`)
-                                client.db.delete(`${interaction.guild.id}.config.log.channelId`)
-                                client.db.delete(`${interaction.guild.id}.config.log.id`)
-                                client.db.delete(`${interaction.guild.id}.config.log.token`)
-                                client.db.delete(`${interaction.guild.id}.config.youtube`)
-                                client.db.delete(`${interaction.guild.id}.config.ban`)
-                                client.db.delete(`${interaction.guild.id}.config.kick`)
-                                client.db.delete(`${interaction.guild.id}.config.timeout`)
-                                interaction.reply({content: "<:9294passed:926715199950561341> All configurations have been reset!", ephemeral: true})
-
+                            data.log.webhookID = null
+                            data.log.webhookToken = null
+                            data.log.webhookChannelID = null
+                            data.config.action_ban = false
+                            data.config.action_kick = false
+                            data.config.action_timeout = false
+                            data.config.youtube_filter = false
+                            data.config.delete = false
+                            data.save()
+                            interaction.reply({
+                                content: "<:9294passed:926715199950561341> All configurations have been reset!",
+                                ephemeral: true
+                            })
 
 
                             break
                     }
 
+
                     break
             }
+            })
         }
 
     }
