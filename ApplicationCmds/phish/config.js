@@ -1,4 +1,4 @@
-const { MessageEmbed } = require('discord.js');
+const { MessageEmbed, Permissions } = require('discord.js');
 
 module.exports = {
     name: "configure",
@@ -142,11 +142,21 @@ module.exports = {
             switch(interaction.options._hoistedOptions[0].name) {
 
                 case "delete":
-                    if(await client.db.fetch(`${interaction.guild.id}.config.delete`)) return interaction.reply({content: "<:3595failed:926715200172867624> Phishing links are already being deleted!", ephemeral: true})
+                    if(!interaction.guild.me.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES)) return interaction.reply({content: "<:3595failed:926715200172867624> I don't have the `Manage Messages` permission!", ephemeral: true})
+                    if(!interaction.options._hoistedOptions[0].value) {
+                        client.db.delete(`${interaction.guild.id}.config.delete`)
+                        return interaction.reply({content: "<:9294passed:926715199950561341> The delete links has been turned off!", ephemeral: true})
+                    }
                     client.db.set(`${interaction.guild.id}.config.delete`, interaction.options._hoistedOptions[0].value)
                     interaction.reply({content: "<:9294passed:926715199950561341> The detected phishing or malicious links will now be deleted.", ephemeral: true})
                     break
                 case "youtube-filter":
+                    if(!interaction.guild.me.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES)) return interaction.reply({content: "<:3595failed:926715200172867624> I don't have the `Manage Messages` permission!", ephemeral: true})
+                    if(!interaction.options._hoistedOptions[0].value) {
+                        client.db.delete(`${interaction.guild.id}.config.YouTube`)
+                        return interaction.reply({content: "<:9294passed:926715199950561341> The YouTube filter has been turned off.", ephemeral: true})
+                    }
+
                     if(await client.db.fetch(`${interaction.guild.id}.config.youtube`)) return interaction.reply({content: "<:3595failed:926715200172867624> Youtube links are already being filtered.", ephemeral: true})
                     client.db.set(`${interaction.guild.id}.config.youtube`, interaction.options._hoistedOptions[0].value)
                     interaction.reply({content: "<:9294passed:926715199950561341> Successfully configured, I will now filter youtube videos that get sent.", ephemeral: true})
@@ -158,6 +168,7 @@ module.exports = {
                             if(await client.db.fetch(`${interaction.guild.id}.config.kick`) == true) return interaction.reply({content: "<:3595failed:926715200172867624> You can't enable both kick and ban.", ephemeral: true})
                             if(await client.db.fetch(`${interaction.guild.id}.config.ban`) === true) return interaction.reply({content: "<:3595failed:926715200172867624> The configuration has already been set!", ephemeral: true})
                             else {
+                                if(!interaction.guild.me.permissions.has(Permissions.FLAGS.BAN_MEMBERS)) return interaction.reply({content: "<:3595failed:926715200172867624> I don't have the `Manage Messages` permission!", ephemeral: true})
                                 client.db.set(`${interaction.guild.id}.config.ban`, true)
                                 interaction.reply({content: "<:9294passed:926715199950561341> Configuration updated!", ephemeral: true})
                             }
@@ -167,6 +178,7 @@ module.exports = {
                             if(await client.db.fetch(`${interaction.guild.id}.config.ban`) == true) return interaction.reply({content: "<:3595failed:926715200172867624> You can't enable both kick and ban.", ephemeral: true})
                             if(await client.db.fetch(`${interaction.guild.id}.config.kick`) === true) return interaction.reply({content: "<:3595failed:926715200172867624> The configuration has already been set!", ephemeral: true})
                             else {
+                                if(!interaction.guild.me.permissions.has(Permissions.FLAGS.KICK_MEMBERS)) return interaction.reply({content: "<:3595failed:926715200172867624> I don't have the `Manage Messages` permission!", ephemeral: true})
                                 client.db.set(`${interaction.guild.id}.config.kick`, true)
                                 interaction.reply({content: "<:9294passed:926715199950561341> Configuration updated!", ephemeral: true})
                             }
@@ -174,6 +186,7 @@ module.exports = {
                         case "timeout":
                             if(await client.db.fetch(`${interaction.guild.id}.config.timeout`) === true) return interaction.reply({content: "<:3595failed:926715200172867624> The configuration has already been set!", ephemeral: true})
                             else {
+                                if(!interaction.guild.me.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return interaction.reply({content: "<:3595failed:926715200172867624> I don't have the `Manage Messages` permission!", ephemeral: true})
                                 client.db.set(`${interaction.guild.id}.config.timeout`, true)
                                 interaction.reply({content: "<:9294passed:926715199950561341> Configuration updated!", ephemeral: true})
                             }

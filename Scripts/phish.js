@@ -25,7 +25,7 @@ async function checkLink(link) {
  * @param domain The domain link to check
  * @returns {Promise<any>}
  */
-async function linkInfo(domain) {
+async function phisherman(domain) {
     return await fetch(`https://api.phisherman.gg/v1/domains/info/${domain}`, {
         headers: {
             "Authorization": 'Bearer 02e6fac0-b924-48aa-b583-2d410fbc691a',
@@ -40,7 +40,7 @@ async function linkInfo(domain) {
  * @param link A youtube link that'll get scanned
  * @returns {Promise<boolean>}
  */
-async function checkYoutube(link) {
+async function searchYouTube(link) {
 
     return !!["discord nitro generator","free nitro generator", "nitro","discord nitro codes generator"].find(async x => {
         const regex = new RegExp(`\\b${x}\\b`, 'i')
@@ -119,7 +119,7 @@ async function youtubeLogger(webhookID, webhookToken, user, link, message, time)
                 .setColor('#ff0000')
                 .setThumbnail(user.avatarURL({dynamic: true}))
                 .setTitle(`<:3595failed:926715200172867624> Potential Malicious Youtube Video Found`)
-                .setDescription(`<@${user.id}> ${user.tag} | ${user.id}\nsent a malicious Youtube video <t:${time}:R>.\n\nMessage: \n\`\`\`${message.length > 1700 ?  "The message was too long to display, refer to the text file below." : message}\`\`\`\n:Link Sent:\n\`\`\`${link}\`\`\``)
+                .setDescription(`<@${user.id}> ${user.tag} | ${user.id}\nsent a malicious Youtube video <t:${time}:R>.\n\nMessage: \n\`\`\`${message.length > 1700 ?  "The message was too long to display, refer to the text file below." : message}\`\`\`\nLink Sent:\n\`\`\`${link}\`\`\``)
         ],
     })
 
@@ -145,8 +145,8 @@ async function youtubeLogger(webhookID, webhookToken, user, link, message, time)
 
 module.exports = {
     checkLink,
-    linkInfo,
-    checkYoutube,
+    phisherman,
+    searchYouTube,
     logger,
     youtubeLogger
 }
