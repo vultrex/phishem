@@ -8,6 +8,8 @@ module.exports = {
     description: "Bot evaluation command",
     timeout: 5000,
     run: async(client, msg, args) => {
+        if (!process.env.developers.includes(msg.author.id)) return;
+
         let hrDiff = process.hrtime(process.hrtime());
         let isPromise = false;
 

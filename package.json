@@ -2,7 +2,7 @@
   "name": "phish",
   "version": "1.0.0",
   "description": "phish detection bot",
-  "main": "index.js",
+  "main": "shard.js",
   "scripts": {},
   "author": "Ne-k",
   "license": "MIT",

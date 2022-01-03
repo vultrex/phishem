@@ -18,9 +18,9 @@ module.exports = async () => {
 const rest = new REST({version: "9"}).setToken(process.env.token);
 
 	try {
-		console.log('Refreshing application commands.'.yellow);
-		await rest.put(Routes.applicationCommands("926687914174341130"), {body: commands},);
-		console.log('Reloaded application commands.'.green);
+		console.log(`[ Discord ]`.cyan + ' Refreshing application commands.'.yellow);
+		await rest.put(Routes.applicationCommands("812404710992379965"), {body: commands},);
+		console.log(`[ Discord ]`.cyan + ' Reloaded application commands.'.green);
 	} catch (error) {
 		console.error(error);
 	}

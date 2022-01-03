@@ -12,7 +12,6 @@ module.exports = async(client, interaction) => {
 			if (command.timeout) {
 				if (Timeout.has(`${interaction.user.id}${command.name}`)) {
 					const embed = new MessageEmbed()
-						.setTitle('You are in timeout!')
 						.setDescription(`You need to wait **${humanizeDuration(command.timeout, {round: true})}** to use command again`)
 						.setColor('#ff0000')
 					return interaction.reply({embeds: [embed], ephemeral: true})
@@ -36,7 +35,7 @@ module.exports = async(client, interaction) => {
 				Timeout.delete(`${interaction.user.id}${command.name}`)
 			}, command.timeout);
 		} catch (error) {
-			console.error(error);
+			console.log(`[ Error ] `.red + error)
 			await interaction.reply({content: ':x: There was an error while executing this command!', ephemeral: true});
 		}
 

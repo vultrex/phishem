@@ -200,13 +200,13 @@ module.exports = {
                             return interaction.reply({content: "Looks like logging is already enabled on a different channel! If you wish to change channels, please reset the configuration and run this command again.", ephemeral: true})
                         }
                         const webhook = await channel.createWebhook('Phish Logger', {
-                            avatar: client.user.avatarURL()
+                            avatar: client.user.avatarURL({format: 'png'}),
                         })
                         client.db.set(`${interaction.guild.id}.config.log.channelId`, channel.id)
                         client.db.set(`${interaction.guild.id}.config.log.id`, webhook.id)
                         client.db.set(`${interaction.guild.id}.config.log.token`, webhook.token)
 
-                        interaction.reply({content: `<:9294passed:926715199950561341> ${channel.name} has been set as the log channel.`, ephemeral: true})
+                        interaction.reply({content: `<:9294passed:926715199950561341> \`${channel.name}\` has been set as the log channel.`, ephemeral: true})
                     }
 
                     break;

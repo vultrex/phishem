@@ -3,3 +3,5 @@ json.sqlite
 .idea
 .env
 package-lock.json
+phishLog.txt
+ytphishLog.txt

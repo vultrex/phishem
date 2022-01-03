@@ -1,6 +1,7 @@
 const fetch = require('node-fetch');
 const Discord = require("discord.js");
 const {MessageActionRow, MessageButton, MessageEmbed} = require("discord.js");
+const fs = require("fs");
 
 /**
  *
@@ -40,8 +41,9 @@ async function linkInfo(domain) {
  * @returns {Promise<boolean>}
  */
 async function checkYoutube(link) {
-    return !![process.env.youtubeKeywords].find(async x => {
-        const regex = new RegExp(`\\b${x}\\b`, 'i');
+
+    return !!["discord nitro generator","free nitro generator", "nitro","discord nitro codes generator"].find(async x => {
+        const regex = new RegExp(`\\b${x}\\b`, 'i')
         return regex.test(await require('node-fetch')(link).then(res => res.text()))
     })
 }
@@ -68,18 +70,38 @@ async function logger(webhookID, webhookToken, user, link, message, time) {
         token: webhookToken
     });
 
+
     await webhook.send({
         embeds: [
             new Discord.MessageEmbed()
                 .setColor('#ff0000')
                 .setThumbnail(user.avatarURL({dynamic: true}))
                 .setTitle(`<:3595failed:926715200172867624> Malicious link detected!`)
-                .setDescription(`<@${user.id}> ${user.tag} | ${user.id}\nsent a malicious link <t:${time}:R>.\n\nDeleted Message: ${message}`)
+                .setDescription(`<@${user.id}> ${user.tag} | ${user.id}\nsent a malicious link <t:${time}:R>.\n\nMessage: \`\`\`${message.length > 1700 ?  "The message was too long to display, refer to the text file below." : message}\`\`\`\nLink Sent:\n\`\`\`${link}\`\`\``)
         ],
         components: [
             urlscan
         ]
     })
+
+    if(message.length > 1700) {
+        fs.writeFile(`./phishLog.txt`, `[${user.tag} | ${user.id}]\n${message}`, function (err) {
+            if (err) {
+                console.log(`[ Error ] `.red + err);
+            }
+        });
+
+        await webhook.send({
+            files: ["./phishLog.txt"]
+        })
+        setTimeout(async () => {
+            fs.unlink(`./phishLog.txt`, function (err) {
+                if (err) {
+                    console.log(`[ Error ] `.red + err);
+                }
+            });
+        }, 1000);
+    }
 }
 
 async function youtubeLogger(webhookID, webhookToken, user, link, message, time) {
@@ -88,15 +110,37 @@ async function youtubeLogger(webhookID, webhookToken, user, link, message, time)
         token: webhookToken
     });
 
+
+
     await webhook.send({
+        avatarURL: 'https://media.discordapp.net/attachments/854794095066349618/927378869793718342/blue0517_2.png?width=968&height=605',
         embeds: [
             new Discord.MessageEmbed()
                 .setColor('#ff0000')
                 .setThumbnail(user.avatarURL({dynamic: true}))
-                .setTitle(`<:3595failed:926715200172867624> Potential malicious Youtube video found`)
-                .setDescription(`<@${user.id}> ${user.tag} | ${user.id}\nsent a malicious Youtube video <t:${time}:R>.\n\nDeleted Message: ${message}`)
-        ]
+                .setTitle(`<:3595failed:926715200172867624> Potential Malicious Youtube Video Found`)
+                .setDescription(`<@${user.id}> ${user.tag} | ${user.id}\nsent a malicious Youtube video <t:${time}:R>.\n\nMessage: \n\`\`\`${message.length > 1700 ?  "The message was too long to display, refer to the text file below." : message}\`\`\`\n:Link Sent:\n\`\`\`${link}\`\`\``)
+        ],
     })
+
+    if(message.length > 1700) {
+        fs.writeFile(`./ytphishLog.txt`, `[${user.tag} | ${user.id}]\n${message}`, function (err) {
+            if (err) {
+                console.log(`[ Error ] `.red + err);
+            }
+        });
+
+            await webhook.send({
+                files: ["./ytphishLog.txt"]
+            })
+        setTimeout(async () => {
+            fs.unlink(`./ytphishLog.txt`, function (err) {
+                if (err) {
+                    console.log(`[ Error ] `.red + err);
+                }
+            });
+        }, 1000);
+    }
 }
 
 module.exports = {
