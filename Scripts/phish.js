@@ -49,7 +49,10 @@ async function searchYouTube(link) {
 }
 
 
-async function logger(webhookID, webhookToken, user, link, message, time) {
+async function logger(webhookID, webhookToken, user, link, message, channel, time) {
+    try {
+
+
    const phishman = await fetch(`https://api.phisherman.gg/v1/domains/info/${link}`, {
        headers: {
            "Authorization": 'Bearer 02e6fac0-b924-48aa-b583-2d410fbc691a',
@@ -77,7 +80,7 @@ async function logger(webhookID, webhookToken, user, link, message, time) {
                 .setColor('#ff0000')
                 .setThumbnail(user.avatarURL({dynamic: true}))
                 .setTitle(`<:3595failed:926715200172867624> Malicious link detected!`)
-                .setDescription(`<@${user.id}> ${user.tag} | ${user.id}\nsent a malicious link <t:${time}:R>.\n\nMessage: \`\`\`${message.length > 1700 ?  "The message was too long to display, refer to the text file below." : message}\`\`\`\nLink Sent:\n\`\`\`${link}\`\`\``)
+                .setDescription(`<@${user.id}> ${user.tag} | ${user.id}\nsent a malicious link <t:${time}:R> in <#${channel}>.\n\nMessage: \`\`\`${message.length > 1700 ?  "The message was too long to display, refer to the text file below." : message}\`\`\`\nLink Sent:\n\`\`\`${link}\`\`\``)
         ],
         components: [
             urlscan
@@ -102,9 +105,44 @@ async function logger(webhookID, webhookToken, user, link, message, time) {
             });
         }, 1000);
     }
+    } catch (e) {
+        const webhook = new Discord.WebhookClient({
+            id: webhookID,
+            token: webhookToken
+        });
+
+        await webhook.send({
+            embeds: [
+                new Discord.MessageEmbed()
+                    .setColor('#ff0000')
+                    .setThumbnail(user.avatarURL({dynamic: true}))
+                    .setTitle(`<:3595failed:926715200172867624> Malicious link detected!`)
+                    .setDescription(`<@${user.id}> ${user.tag} | ${user.id}\nsent a malicious link <t:${time}:R> in <#${channel}>.\n\nMessage: \`\`\`${message.length > 1700 ? "The message was too long to display, refer to the text file below." : message}\`\`\`\nLink Sent:\n\`\`\`${link}\`\`\``)
+            ],
+        })
+
+        if(message.length > 1700) {
+            fs.writeFile(`./phishLog.txt`, `[${user.tag} | ${user.id}]\n${message}`, function (err) {
+                if (err) {
+                    console.log(`[ Error ] `.red + err);
+                }
+            });
+
+            await webhook.send({
+                files: ["./phishLog.txt"]
+            })
+            setTimeout(async () => {
+                fs.unlink(`./phishLog.txt`, function (err) {
+                    if (err) {
+                        console.log(`[ Error ] `.red + err);
+                    }
+                });
+            }, 1000);
+        }
+    }
 }
 
-async function youtubeLogger(webhookID, webhookToken, user, link, message, time) {
+async function youtubeLogger(webhookID, webhookToken, user, link, message, channel, time) {
     const webhook = new Discord.WebhookClient({
         id: webhookID,
         token: webhookToken
@@ -119,7 +157,7 @@ async function youtubeLogger(webhookID, webhookToken, user, link, message, time)
                 .setColor('#ff0000')
                 .setThumbnail(user.avatarURL({dynamic: true}))
                 .setTitle(`<:3595failed:926715200172867624> Potential Malicious Youtube Video Found`)
-                .setDescription(`<@${user.id}> ${user.tag} | ${user.id}\nsent a malicious Youtube video <t:${time}:R>.\n\nMessage: \n\`\`\`${message.length > 1700 ?  "The message was too long to display, refer to the text file below." : message}\`\`\`\nLink Sent:\n\`\`\`${link}\`\`\``)
+                .setDescription(`<@${user.id}> ${user.tag} | ${user.id}\nsent a malicious Youtube video <t:${time}:R> in <#${channel}>.\n\nMessage: \n\`\`\`${message.length > 1700 ?  "The message was too long to display, refer to the text file below." : message}\`\`\`\nLink Sent:\n\`\`\`${link}\`\`\``)
         ],
     })
 

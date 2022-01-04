@@ -48,7 +48,7 @@ module.exports = async (client , message) => {
 
             if(data.log.webhookToken && data.log.webhookID) {
 
-                await client.phish.logger(data.log.webhookID, data.log.webhookToken, message.author, bitData.matches.map(m => m.domain), message.content, Math.floor(new Date().getTime() / 1000))
+                await client.phish.logger(data.log.webhookID, data.log.webhookToken, message.author, bitData.matches.map(m => m.domain), message.content, message.channel.id, Math.floor(new Date().getTime() / 1000))
             }
 
         } else if(youtubeRegex.test(message.content) && data.config.youtube_filter) {
@@ -59,7 +59,7 @@ module.exports = async (client , message) => {
                 if(data.config.action_timeout) await message.member.timeout(10000 * 60 * 1000, '[Automod] Detected a phishing link from the user.')
 
                 if(data.log.webhookToken && data.log.webhookID) {
-                    await client.phish.youtubeLogger(data.log.webhookID, data.log.webhookToken, message.author, message.content.match(ytLink)[0], message.content, Math.floor(new Date().getTime() / 1000))
+                    await client.phish.youtubeLogger(data.log.webhookID, data.log.webhookToken, message.author, message.content.match(ytLink)[0], message.content, message.channel.id, Math.floor(new Date().getTime() / 1000))
                 } else return
 
             } else {
