@@ -41,10 +41,22 @@ module.exports = async (client , message) => {
             if (message.member.permissions.has(Permissions.FLAGS.ADMINISTRATOR) || message.member.permissions.has(Permissions.FLAGS.MANAGE_GUILD) || message.member.permissions.has(Permissions.FLAGS.MANAGE_CHANNELS) || message.member.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return;
 
 
-            if(data.config.delete && message.guild.me.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES)) message.delete({reason: "[Automod] Detected a phishing link from the user."})
-            if(data.config.action_ban && message.guild.me.permissions.has(Permissions.FLAGS.BAN_MEMBERS)) await message.member.ban({reason: `[Automod] Detected a phishing link from the user.`})
-            if(data.config.action_kick && message.guild.me.permissions.has(Permissions.FLAGS.KICK_MEMBERS)) await message.member.kick({reason: `[Automod] Detected a phishing link from the user.`})
-            if(data.config.action_timeout && message.guild.me.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) await message.member.timeout(10000 * 60 * 1000, '[Automod] Detected a phishing link from the user.')
+            if(data.config.delete ) {
+                if(!message.guild.me.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES)) return message.channel.send({content: "I don't have the permission to delete messages."}).then(m => setTimeout(() => m.delete(), 5000)); else message.delete({reason: "[Automod] Detected a phishing link from the user."})
+
+            }
+            if(data.config.action_ban) {
+                if(!message.guild.me.permissions.has(Permissions.FLAGS.BAN_MEMBERS)) return message.channel.send({content: "I don't have the permission to ban members."}).then(m => setTimeout(() => m.delete(), 5000)); else await message.member.ban({reason: `[Automod] Detected a phishing link from the user.`})
+
+            }
+            if(data.config.action_kick) {
+                if(!message.guild.me.permissions.has(Permissions.FLAGS.KICK_MEMBERS)) return message.channel.send({content: "I don't have the permission to kick members."}).then(m => setTimeout(() => m.delete(), 5000)); else await message.member.kick({reason: `[Automod] Detected a phishing link from the user.`})
+
+            }
+            if(data.config.action_timeout) {
+                if(!message.guild.me.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return message.channel.send({content: "I don't have the permission to moderate members."}).then(m => setTimeout(() => m.delete(), 5000)); else message.member.timeout(10000 * 60 * 1000, '[Automod] Detected a phishing link from the user.')
+
+            }
 
             if(data.log.webhookToken && data.log.webhookID) {
 

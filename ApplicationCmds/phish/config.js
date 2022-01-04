@@ -109,13 +109,19 @@ module.exports = {
     category: "phish",
     run: async(interaction,  client) => {
         Schema.findOne({id: interaction.guild.id}, async (err, data) => {
+
             if (!data) {
+
                 const newData = new Schema({
                     id: interaction.guild.id,
                     name: interaction.guild.name
                 })
                 await newData.save()
                 return interaction.reply({content: "Looks like your server wasn't saved in the database correctly, I went ahead and saved it, feel free to run this command again.", ephemeral: true})
+            }
+            if(!interaction.guild.me.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES)) {
+                data.config.delete = false
+                await data.save()
             }
         })
         switch(interaction.options._subcommand) {
@@ -126,7 +132,7 @@ module.exports = {
                             .setTitle(`The current configuration for \`${interaction.guild.name}\``)
                             .setColor(0x00AE86)
                             .setDescription(`\`\`\`diff\n++++ Server Configurations ++++\n${data.config.delete ? "+" : "-"} Delete Links: ${data.config.delete ? "On" : "Off"}\n${data.config.youtube_filter ? "+" : "-"} Youtube Filter: ${data.config.youtube_filter ? "On" : "Off"}\n${data.log.webhookID && data.log.webhookToken ? "+" : "-"} Logging: ${data.log.webhookID && data.log.webhookToken ? "On" : "Off"}\n  Actions:\n${data.config.action_ban ? "+" : "-"} Ban: ${data.config.action_ban ? "On" : "off"}\n${data.config.action_kick ? "+" : "-"} Kick: ${data.config.action_kick ? "On" : "Off"}\n${data.config.action_timeout ? "+" : "-"} Timeout: ${data.config.action_timeout ? "On" : "Off"}\`\`\``)
-                        interaction.reply({embeds: [configEmbed]});
+                        return interaction.reply({embeds: [configEmbed]});
                     }
                 })
                 break
