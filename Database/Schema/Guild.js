@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 module.exports = mongoose.model("Guild", new mongoose.Schema({
 
     id: { type: String }, //ID of the guild
+    name: { type: String }, //Name of the guild
     // Logger
     config: {
         delete: { type: Boolean, default: true }, //Delete the guild after the bot is restarted

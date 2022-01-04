@@ -78,6 +78,7 @@ module.exports = {
                     name: "configurations",
                     description: "Reset the server configurations back to it's original state.",
                     type: 3,
+                    required: true,
                     choices: [
                         {
                             name: "Delete",
@@ -107,6 +108,16 @@ module.exports = {
     permissions: "MANAGE_GUILD",
     category: "phish",
     run: async(interaction,  client) => {
+        Schema.findOne({id: interaction.guild.id}, async (err, data) => {
+            if (!data) {
+                const newData = new Schema({
+                    id: interaction.guild.id,
+                    name: interaction.guild.name
+                })
+                await newData.save()
+                return interaction.reply({content: "Looks like your server wasn't saved in the database correctly, I went ahead and saved it, feel free to run this command again.", ephemeral: true})
+            }
+        })
         switch(interaction.options._subcommand) {
             case "get":
                 Schema.findOne({id: interaction.guild.id}, async (err, data) => {

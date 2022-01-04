@@ -4,7 +4,8 @@ module.exports = async (client, guild) => {
         if(err) console.log(err)
         if(!data) {
             const newData = new Schema({
-                id: guild.id
+                id: guild.id,
+                name: guild.name
             })
             await newData.save()
         }
