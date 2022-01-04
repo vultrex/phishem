@@ -41,10 +41,10 @@ module.exports = async (client , message) => {
             if (message.member.permissions.has(Permissions.FLAGS.ADMINISTRATOR) || message.member.permissions.has(Permissions.FLAGS.MANAGE_GUILD) || message.member.permissions.has(Permissions.FLAGS.MANAGE_CHANNELS) || message.member.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return;
 
 
-            if(data.config.delete) message.delete({reason: "[Automod] Detected a phishing link from the user."})
-            if(data.config.action_ban) await message.member.ban({reason: `[Automod] Detected a phishing link from the user.`})
-            if(data.config.action_kick) await message.member.kick({reason: `[Automod] Detected a phishing link from the user.`})
-            if(data.config.action_timeout) await message.member.timeout(10000 * 60 * 1000, '[Automod] Detected a phishing link from the user.')
+            if(data.config.delete && message.guild.me.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES)) message.delete({reason: "[Automod] Detected a phishing link from the user."})
+            if(data.config.action_ban && message.guild.me.permissions.has(Permissions.FLAGS.BAN_MEMBERS)) await message.member.ban({reason: `[Automod] Detected a phishing link from the user.`})
+            if(data.config.action_kick && message.guild.me.permissions.has(Permissions.FLAGS.KICK_MEMBERS)) await message.member.kick({reason: `[Automod] Detected a phishing link from the user.`})
+            if(data.config.action_timeout && message.guild.me.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) await message.member.timeout(10000 * 60 * 1000, '[Automod] Detected a phishing link from the user.')
 
             if(data.log.webhookToken && data.log.webhookID) {
 

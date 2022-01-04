@@ -75,6 +75,7 @@ async function logger(webhookID, webhookToken, user, link, message, channel, tim
 
 
     await webhook.send({
+        avatarURL: 'https://media.discordapp.net/attachments/854794095066349618/927378869793718342/blue0517_2.png?width=968&height=605',
         embeds: [
             new Discord.MessageEmbed()
                 .setColor('#ff0000')
@@ -112,6 +113,7 @@ async function logger(webhookID, webhookToken, user, link, message, channel, tim
         });
 
         await webhook.send({
+            avatarURL: 'https://media.discordapp.net/attachments/854794095066349618/927378869793718342/blue0517_2.png?width=968&height=605',
             embeds: [
                 new Discord.MessageEmbed()
                     .setColor('#ff0000')
@@ -157,7 +159,7 @@ async function youtubeLogger(webhookID, webhookToken, user, link, message, chann
                 .setColor('#ff0000')
                 .setThumbnail(user.avatarURL({dynamic: true}))
                 .setTitle(`<:3595failed:926715200172867624> Potential Malicious Youtube Video Found`)
-                .setDescription(`<@${user.id}> ${user.tag} | ${user.id}\nsent a malicious Youtube video <t:${time}:R> in <#${channel}>.\n\nMessage: \n\`\`\`${message.length > 1700 ?  "The message was too long to display, refer to the text file below." : message}\`\`\`\nLink Sent:\n\`\`\`${link}\`\`\``)
+                .setDescription(`<@${user.id}> ${user.tag} | ${user.id}\nsent a potential malicious Youtube video <t:${time}:R> in <#${channel}>.\n\nMessage: \n\`\`\`${message.length > 1700 ?  "The message was too long to display, refer to the text file below." : message}\`\`\`\nLink Sent:\n\`\`\`${link}\`\`\``)
         ],
     })
 
