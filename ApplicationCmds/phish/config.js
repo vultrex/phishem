@@ -13,18 +13,27 @@ module.exports = {
         {
             name: "bypass",
             description: "Create or remove links that will bypass the filters",
-            type: 1,
+            type: 2,
             options: [
                 {
-                    name: "create",
-                    description: "Create a bypass link",
-                    type: 3,
+                    name: "url",
+                    description: "The url to bypass",
+                    type: 1,
+                    options: [
+                        {
+                            name: "add",
+                            description: "Add a url to bypass",
+                            type: 3,
+                        },
+                        {
+                            name: "remove",
+                            description: "Remove a url to bypass",
+                            type: 3,
+                        },
+                    ]
+
                 },
-                {
-                    name: "remove",
-                    description: "Remove a bypass link",
-                    type: 3,
-                },
+
             ]
         },
         {
@@ -38,7 +47,7 @@ module.exports = {
                     type: 5,
                 },
                 {
-                    name: "youtube-filter",
+                    name: "youtube_filter",
                     description: "Scan and filter \"free nitro generator\" youtube videos.",
                     type: 5,
                 },
@@ -109,12 +118,11 @@ module.exports = {
     category: "phish",
     run: async(interaction,  client) => {
         Schema.findOne({id: interaction.guild.id}, async (err, data) => {
-
             if (!data) {
 
                 const newData = new Schema({
                     id: interaction.guild.id,
-                    name: interaction.guild.name
+                    name: interaction.guild.name,
                 })
                 await newData.save()
                 return interaction.reply({content: "Looks like your server wasn't saved in the database correctly, I went ahead and saved it, feel free to run this command again.", ephemeral: true})
@@ -123,10 +131,9 @@ module.exports = {
                 data.config.delete = false
                 await data.save()
             }
-        })
         switch(interaction.options._subcommand) {
             case "get":
-                Schema.findOne({id: interaction.guild.id}, async (err, data) => {
+
                     if(data) {
                         let configEmbed = new MessageEmbed()
                             .setTitle(`The current configuration for \`${interaction.guild.name}\``)
@@ -134,28 +141,63 @@ module.exports = {
                             .setDescription(`\`\`\`diff\n++++ Server Configurations ++++\n${data.config.delete ? "+" : "-"} Delete Links: ${data.config.delete ? "On" : "Off"}\n${data.config.youtube_filter ? "+" : "-"} Youtube Filter: ${data.config.youtube_filter ? "On" : "Off"}\n${data.log.webhookID && data.log.webhookToken ? "+" : "-"} Logging: ${data.log.webhookID && data.log.webhookToken ? "On" : "Off"}\n  Actions:\n${data.config.action_ban ? "+" : "-"} Ban: ${data.config.action_ban ? "On" : "off"}\n${data.config.action_kick ? "+" : "-"} Kick: ${data.config.action_kick ? "On" : "Off"}\n${data.config.action_timeout ? "+" : "-"} Timeout: ${data.config.action_timeout ? "On" : "Off"}\`\`\``)
                         return interaction.reply({embeds: [configEmbed]});
                     }
-                })
+
                 break
 
-            case "bypass":
+            case "url":
+                if(!data.config.bypass) {
+                    const newData = new Schema({
+                        id: interaction.guild.id,
+                        name: interaction.guild.name,
+                        config: {
+                            bypass: []
+                        }
+                    })
+                    return await newData.save()
+                }
+                const link = new RegExp(/(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]?/gi)
                 if(!interaction.options._hoistedOptions[0]) return interaction.reply({content: "<:3595failed:926715200172867624> You must specify a option!", ephemeral: true})
                 if(interaction.options._hoistedOptions.length > 1) return interaction.reply({content: "<:3595failed:926715200172867624> You can only specify one option!", ephemeral: true})
                 const string = interaction.options._hoistedOptions[0].value;
                 switch(interaction.options._hoistedOptions[0].name) {
 
-                    case "create":
+                    case "add":
                         if(!interaction.options._hoistedOptions[0]) return interaction.reply({content: "<:3595failed:926715200172867624> You must specify a option!", ephemeral: true})
                         if(interaction.options._hoistedOptions.length > 1) return interaction.reply({content: "<:3595failed:926715200172867624> You can only specify one option!", ephemeral: true})
-                        interaction.reply({content: 'This command is still being worked on!', ephemeral: true})
+
+                        if(link.test(string)) {
+                            if(data.config.bypass.includes(string)) return interaction.reply({content: "<:3595failed:926715200172867624> This URL is already in the bypass list!", ephemeral: true})
+                            data.config.bypass.push(string)
+                            await data.save()
+                            return interaction.reply({content: `<:9294passed:926715199950561341> The url \`${string}\` has been added to the list of urls to be filtered.`, ephemeral: true})
+                        } else {
+                            interaction.reply({content: "<:3595failed:926715200172867624> The url you provided is not a valid url.", ephemeral: true})
+                        }
+
                         break
                     case "remove":
-                        interaction.reply({content: 'This command is still being worked on!', ephemeral: true})
+                        if(!interaction.options._hoistedOptions[0]) return interaction.reply({content: "<:3595failed:926715200172867624> You must specify a option!", ephemeral: true})
+                        if(interaction.options._hoistedOptions.length > 1) return interaction.reply({content: "<:3595failed:926715200172867624> You can only specify one option!", ephemeral: true})
+                    function removeItemOnce(arr, value) {
+                        const index = arr.indexOf(value);
+                        if (index > -1) {
+                            arr.splice(index, 1);
+                        }
+                        return arr;
+                    }
+                        if(link.test(string)){
+                            if(!data.config.bypass.includes(string)) return interaction.reply({content: "<:3595failed:926715200172867624> This URL is not in the bypass list, so there's nothing to remove!", ephemeral: true})
+                            removeItemOnce(data.config.bypass, string)
+                            data.save()
+                            return interaction.reply({content: `<<:9294passed:926715199950561341> The url \`${string}\` has been removed from the list of urls to be filtered.`, ephemeral: true})
+                        }
                         break
 
                 }
 
                 break
         }
+        })
 
         const value = interaction.options._hoistedOptions
         if(value[0]) {

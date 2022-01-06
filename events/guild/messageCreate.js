@@ -35,11 +35,11 @@ module.exports = async (client , message) => {
 
     if(new RegExp(/(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]?/gi)) {
 
-        const bitData = await client.phish.checkLink(message.content)
+        const bitData = await client.phish.bitFlow(message.content)
 
         if(bitData.match) {
             if (message.member.permissions.has(Permissions.FLAGS.ADMINISTRATOR) || message.member.permissions.has(Permissions.FLAGS.MANAGE_GUILD) || message.member.permissions.has(Permissions.FLAGS.MANAGE_CHANNELS) || message.member.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return;
-
+            if(data.config.bypass.includes(bitData.matches.map(m => m.domain))) return;
 
             if(data.config.delete ) {
                 if(!message.guild.me.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES)) return message.channel.send({content: "I don't have the permission to delete messages."}).then(m => setTimeout(() => m.delete(), 5000)); else message.delete({reason: "[Automod] Detected a phishing link from the user."})
@@ -67,6 +67,7 @@ module.exports = async (client , message) => {
             if (message.member.permissions.has(Permissions.FLAGS.ADMINISTRATOR) || message.member.permissions.has(Permissions.FLAGS.MANAGE_GUILD) || message.member.permissions.has(Permissions.FLAGS.MANAGE_CHANNELS) || message.member.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return;
             const ytLink = new RegExp(/(https?:\/\/[^\s]+)/g)
             if(await client.phish.searchYouTube(message.content.match(ytLink)[0])) {
+                if(data.config.bypass.includes(message.content.match(ytLink)[0])) return;
                 if(data.config.delete) message.delete({reason: "[Automod] Detected a phishing link from the user."})
                 if(data.config.action_timeout) await message.member.timeout(10000 * 60 * 1000, '[Automod] Detected a phishing link from the user.')
 

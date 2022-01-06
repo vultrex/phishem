@@ -8,6 +8,7 @@ module.exports = mongoose.model("Guild", new mongoose.Schema({
     config: {
         delete: { type: Boolean, default: true }, //Delete the guild after the bot is restarted
         youtube_filter: { type: Boolean, default: false }, //Filter youtube links
+        bypass: [{type: String, default: ""}], //Bypass the filter
         action_ban: { type: Boolean, default: false }, //Ban the user after an action
         action_kick: { type: Boolean, default: false }, //Kick the user after an action
         action_timeout: { type: Boolean, default: false }, //Mute the user after an action
