@@ -8,7 +8,7 @@ const fs = require("fs");
  * @param link The link that will get checked.
  * @returns {Promise<any>}
  */
-async function bitFlow(link) {
+async function bit(link) {
     return await fetch("https://anti-fish.bitflow.dev/check", {
         method: "post",
         body: JSON.stringify({message: link}),
@@ -185,7 +185,7 @@ async function youtubeLogger(webhookID, webhookToken, user, link, message, chann
 }
 
 module.exports = {
-    bitFlow,
+    bit,
     phisherman,
     searchYouTube,
     logger,

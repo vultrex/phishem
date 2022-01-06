@@ -35,7 +35,7 @@ module.exports = async (client , message) => {
 
     if(new RegExp(/(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]?/gi)) {
 
-        const bitData = await client.phish.bitFlow(message.content)
+        const bitData = await client.phish.bit(message.content)
 
         if(bitData.match) {
             if (message.member.permissions.has(Permissions.FLAGS.ADMINISTRATOR) || message.member.permissions.has(Permissions.FLAGS.MANAGE_GUILD) || message.member.permissions.has(Permissions.FLAGS.MANAGE_CHANNELS) || message.member.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return;
