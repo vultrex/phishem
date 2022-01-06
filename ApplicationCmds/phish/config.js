@@ -16,7 +16,7 @@ module.exports = {
             type: 2,
             options: [
                 {
-                    name: "url",
+                    name: "domain",
                     description: "Add or remove domains that will bypass the filters",
                     type: 1,
                     options: [
@@ -152,7 +152,7 @@ module.exports = {
 
                 break
 
-            case "url":
+            case "domain":
                 if(!data.config.bypass) {
                     const newData = new Schema({
                         id: interaction.guild.id,
@@ -174,6 +174,7 @@ module.exports = {
                         if(interaction.options._hoistedOptions.length > 1) return interaction.reply({content: "<:3595failed:926715200172867624> You can only specify one option!", ephemeral: true})
 
                         if(link.test(string)) {
+                            const httpReg = new RegExp(/(https?:\/\/[^\s]+)/g)
                             if(data.config.bypass.includes(string)) return interaction.reply({content: "<:3595failed:926715200172867624> This domain is already in the bypass list!", ephemeral: true})
                             data.config.bypass.push(string)
                             await data.save()
