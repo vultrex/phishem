@@ -189,7 +189,7 @@ module.exports = {
                             if(!data.config.bypass.includes(string)) return interaction.reply({content: "<:3595failed:926715200172867624> This URL is not in the bypass list, so there's nothing to remove!", ephemeral: true})
                             removeItemOnce(data.config.bypass, string)
                             data.save()
-                            return interaction.reply({content: `<<:9294passed:926715199950561341> The url \`${string}\` has been removed from the list of urls to be filtered.`, ephemeral: true})
+                            return interaction.reply({content: `<:9294passed:926715199950561341> The url \`${string}\` has been removed from the list of urls to be filtered.`, ephemeral: true})
                         }
                         break
 
