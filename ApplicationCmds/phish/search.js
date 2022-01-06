@@ -30,6 +30,10 @@ module.exports = {
                      .addField("__Registrant Name__", dns.registrant.name ? dns.registrant.name : "No name found.", true)
                      .addField("__Registrant Organization__", dns.registrant.organization ? dns.registrant.organization : "No organization registered.", true)
                      .addField("__Registrant City__", dns.registrant.city ? dns.registrant.city : "No city registered.", true)
+                     .setFooter({
+                         text: `Last updated: ${moment(dns.update_date).format("LL")}`,
+                         iconURL: interaction.member.avatarURL({dynamic: true})
+                     })
              ]})
         if(inf[domain].classification === 'safe') return interaction.reply({embeds: [new MessageEmbed().setDescription(domain).addField('Classification', '<:2585modshieldlightgreenicon:927289585761927168> Safe').setColor('GREEN')]})
         let embed = new MessageEmbed()
