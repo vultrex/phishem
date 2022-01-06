@@ -19,7 +19,18 @@ module.exports = {
         const regex = new RegExp(/(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]?/gi);
        const domain = interaction.options._hoistedOptions[0].value.match(regex)[0]
         const inf = await client.phish.phisherman(domain)
-        if(!inf[domain] || inf[domain].classification === 'unknown') return interaction.reply({content: `Could not find any information on the domain \`${domain}\``, ephemeral: true})
+            const dns = await client.phish.dnsSearch(domain)
+         if(!inf[domain] || inf[domain].classification === 'unknown') return interaction.reply({embeds: [
+                 new MessageEmbed()
+                     .setColor('RANDOM')
+                     .setDescription(dns.domain)
+                     .addField("__Whois Server__", dns.whois_server ? dns.whois_server : "No dns server found", true)
+                     .addField("__Registrar__", dns.registrar.name ? dns.registrar.name : "No registrar name found.", true)
+                     .addField("__Iana ID__", dns.registrar.iana_id ? dns.registrar.iana_id : "No iana ID found.", true)
+                     .addField("__Registrant Name__", dns.registrant.name ? dns.registrant.name : "No name found.", true)
+                     .addField("__Registrant Organization__", dns.registrant.organization ? dns.registrant.organization : "No organization registered.", true)
+                     .addField("__Registrant City__", dns.registrant.city ? dns.registrant.city : "No city registered.", true)
+             ]})
         if(inf[domain].classification === 'safe') return interaction.reply({embeds: [new MessageEmbed().setDescription(domain).addField('Classification', '<:2585modshieldlightgreenicon:927289585761927168> Safe').setColor('GREEN')]})
         let embed = new MessageEmbed()
 
@@ -74,7 +85,7 @@ module.exports = {
         interaction.reply({embeds: [embed], components: [urlscan]})
 
         } catch(e) {
-            return interaction.reply({content: "Looks like something went wrong. Make sure you're inputting a domain or link.", ephemeral: true})
+            return interaction.reply({content: "Unable to get information on that domain."})
         }
     }
 }

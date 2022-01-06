@@ -36,6 +36,16 @@ async function phisherman(domain) {
     }).then(res => res.json())
 }
 
+async function dnsSearch(domain) {
+    return await fetch(`https://api.ip2whois.com/v2?key=FVGZZKY8MGJ1V82VNVVOHRVQBW3SN1M4&domain=${domain}`, {
+        method: "GET",
+        headers: {
+            "Content-Type": "application/json",
+        },
+
+    }).then(res => res.json())
+}
+
 /**
  *
  * @param link A youtube link that'll get scanned
@@ -188,6 +198,7 @@ module.exports = {
     bit,
     phisherman,
     searchYouTube,
+    dnsSearch,
     logger,
     youtubeLogger
 }
