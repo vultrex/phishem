@@ -17,17 +17,17 @@ module.exports = {
             options: [
                 {
                     name: "url",
-                    description: "The url to bypass",
+                    description: "Add or remove domains that will bypass the filters",
                     type: 1,
                     options: [
                         {
                             name: "add",
-                            description: "Add a url to bypass",
+                            description: "Add a domain to bypass the filters",
                             type: 3,
                         },
                         {
                             name: "remove",
-                            description: "Remove a url to bypass",
+                            description: "Remove a domain from the bypass",
                             type: 3,
                         },
                     ]
@@ -106,6 +106,14 @@ module.exports = {
                             value: "action"
                         },
                         {
+                            name: "Action",
+                            value: "action"
+                        },
+                        {
+                            name: "Domains",
+                            value: "domains"
+                        },
+                        {
                             name: "All",
                             value: "all"
                         }
@@ -138,7 +146,7 @@ module.exports = {
                         let configEmbed = new MessageEmbed()
                             .setTitle(`The current configuration for \`${interaction.guild.name}\``)
                             .setColor(0x00AE86)
-                            .setDescription(`\`\`\`diff\n++++ Server Configurations ++++\n${data.config.delete ? "+" : "-"} Delete Links: ${data.config.delete ? "On" : "Off"}\n${data.config.youtube_filter ? "+" : "-"} Youtube Filter: ${data.config.youtube_filter ? "On" : "Off"}\n${data.log.webhookID && data.log.webhookToken ? "+" : "-"} Logging: ${data.log.webhookID && data.log.webhookToken ? "On" : "Off"}\n  Actions:\n${data.config.action_ban ? "+" : "-"} Ban: ${data.config.action_ban ? "On" : "off"}\n${data.config.action_kick ? "+" : "-"} Kick: ${data.config.action_kick ? "On" : "Off"}\n${data.config.action_timeout ? "+" : "-"} Timeout: ${data.config.action_timeout ? "On" : "Off"}\`\`\``)
+                            .setDescription(`\`\`\`diff\n++++ Server Configurations ++++\n${data.config.delete ? "+" : "-"} Delete Links: ${data.config.delete ? "On" : "Off"}\n${data.config.youtube_filter ? "+" : "-"} Youtube Filter: ${data.config.youtube_filter ? "On" : "Off"}\n${data.log.webhookID && data.log.webhookToken ? "+" : "-"} Logging: ${data.log.webhookID && data.log.webhookToken ? "On" : "Off"}\n  Actions:\n${data.config.action_ban ? "+" : "-"} Ban: ${data.config.action_ban ? "On" : "off"}\n${data.config.action_kick ? "+" : "-"} Kick: ${data.config.action_kick ? "On" : "Off"}\n${data.config.action_timeout ? "+" : "-"} Timeout: ${data.config.action_timeout ? "On" : "Off"}\`\`\`\n\`\`\`diff\n++++ Domains That Bypass The Filters ++++\n${data.config.bypass.join("\n") ? data.config.bypass.join("\n") : "None have been added."}\`\`\``)
                         return interaction.reply({embeds: [configEmbed]});
                     }
 
@@ -166,12 +174,12 @@ module.exports = {
                         if(interaction.options._hoistedOptions.length > 1) return interaction.reply({content: "<:3595failed:926715200172867624> You can only specify one option!", ephemeral: true})
 
                         if(link.test(string)) {
-                            if(data.config.bypass.includes(string)) return interaction.reply({content: "<:3595failed:926715200172867624> This URL is already in the bypass list!", ephemeral: true})
+                            if(data.config.bypass.includes(string)) return interaction.reply({content: "<:3595failed:926715200172867624> This domain is already in the bypass list!", ephemeral: true})
                             data.config.bypass.push(string)
                             await data.save()
-                            return interaction.reply({content: `<:9294passed:926715199950561341> The url \`${string}\` has been added to the list of urls to be filtered.`, ephemeral: true})
+                            return interaction.reply({content: `<:9294passed:926715199950561341> The domain \`${string}\` has been added to the list of domains to be filtered.`, ephemeral: true})
                         } else {
-                            interaction.reply({content: "<:3595failed:926715200172867624> The url you provided is not a valid url.", ephemeral: true})
+                            interaction.reply({content: "<:3595failed:926715200172867624> The domain you provided is not a valid.", ephemeral: true})
                         }
 
                         break
@@ -186,10 +194,10 @@ module.exports = {
                         return arr;
                     }
                         if(link.test(string)){
-                            if(!data.config.bypass.includes(string)) return interaction.reply({content: "<:3595failed:926715200172867624> This URL is not in the bypass list, so there's nothing to remove!", ephemeral: true})
+                            if(!data.config.bypass.includes(string)) return interaction.reply({content: "<:3595failed:926715200172867624> This domain is not in the bypass list, so there's nothing to remove!", ephemeral: true})
                             removeItemOnce(data.config.bypass, string)
                             data.save()
-                            return interaction.reply({content: `<:9294passed:926715199950561341> The url \`${string}\` has been removed from the list of urls to be filtered.`, ephemeral: true})
+                            return interaction.reply({content: `<:9294passed:926715199950561341> The domain \`${string}\` has been removed from the list of domains to be filtered.`, ephemeral: true})
                         }
                         break
 
@@ -446,6 +454,14 @@ module.exports = {
                             break
                         case "youtube":
                             data.config.youtube_filter = false
+                            data.save()
+                            interaction.reply({
+                                content: "<:9294passed:926715199950561341> The configuration has been reset!",
+                                ephemeral: true
+                            })
+                            break
+                        case "domains":
+                            data.config.bypass = []
                             data.save()
                             interaction.reply({
                                 content: "<:9294passed:926715199950561341> The configuration has been reset!",
