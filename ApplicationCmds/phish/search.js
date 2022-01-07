@@ -89,7 +89,7 @@ module.exports = {
         interaction.reply({embeds: [embed], components: [urlscan]})
 
         } catch(e) {
-            return interaction.reply({content: "Unable to get information on that domain."})
+            return interaction.reply({content: "Unable to get information on that domain, try again in one minute."})
         }
     }
 }
