@@ -35,7 +35,7 @@ module.exports = {
                          iconURL: interaction.member.avatarURL({dynamic: true})
                      })
              ]})
-        if(inf[domain].classification === 'safe') return interaction.reply({embeds: [new MessageEmbed().setDescription(domain).addField('Classification', '<:2585modshieldlightgreenicon:927289585761927168> Safe') ]})
+        if(inf[domain].classification === 'safe') return interaction.reply({embeds: [new MessageEmbed().setDescription(domain).setColor("GREEN").addField('Classification', '<:2585modshieldlightgreenicon:927289585761927168> Safe') ]})
         let embed = new MessageEmbed()
 
         let status = inf[`${domain}`].status
