@@ -20,8 +20,8 @@ module.exports = {
        const domain = interaction.options._hoistedOptions[0].value.match(regex)[0]
         const inf = await client.phish.phisherman(domain)
             const dns = await client.phish.dnsSearch(domain)
-         if(!inf[domain] || inf[domain].classification === 'unknown') return interaction.reply({embeds: [
-                 new MessageEmbed()
+            /*
+            new MessageEmbed()
                      .setColor('RANDOM')
                      .setDescription(dns.domain)
                      .addField("__Whois Server__", dns.whois_server ? dns.whois_server : "No dns server found", true)
@@ -34,7 +34,8 @@ module.exports = {
                          text: `Last updated: ${moment(dns.update_date).format("LL")}`,
                          iconURL: interaction.member.avatarURL({dynamic: true})
                      })
-             ]})
+             */
+         if(!inf[domain] || inf[domain].classification === 'unknown') return interaction.reply({embeds: [ new MessageEmbed().setColor('RED').setDescription(domain).addField("Classification",  "❓ Unknown")]})
         if(inf[domain].classification === 'safe') return interaction.reply({embeds: [new MessageEmbed().setDescription(domain).setColor("GREEN").addField('Classification', '<:2585modshieldlightgreenicon:927289585761927168> Safe') ]})
         let embed = new MessageEmbed()
 
@@ -56,10 +57,10 @@ module.exports = {
         let classification = inf[`${domain}`].classification
         if(classification === 'suspicious') {
             embed.setColor("YELLOW")
-            classification = "❗ Suspicious"
+            classification = "<:2189modshieldyellowicon:929213568535117884> Suspicious"
         } else if(classification === 'malicious') {
             embed.setColor('RED')
-            classification = "<:6371win11warningicon:926716233724870696> Malicious"
+            classification = "<:image_20211228_114840:925475350706806875> Malicious"
         }
 
         let firstSeen = inf[`${domain}`].firstSeen
@@ -89,6 +90,7 @@ module.exports = {
         interaction.reply({embeds: [embed], components: [urlscan]})
 
         } catch(e) {
+            console.log(e)
             return interaction.reply({content: "Unable to get information on that domain, try again in one minute."})
         }
     }

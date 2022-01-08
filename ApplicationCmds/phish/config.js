@@ -10,6 +10,34 @@ module.exports = {
             description: "Get the current configuration",
             type: 1,
         },
+        /*
+        {
+            name: "block",
+            description: "Add additional domains to the filters to block",
+            type: 2,
+            options: [
+                {
+                    name: "domain",
+                    description: "Add or remove domains that will bypass the filters",
+                    type: 1,
+                    options: [
+                        {
+                            name: "add",
+                            description: "Add a domain to block",
+                            type: 3,
+                        },
+                        {
+                            name: "remove",
+                            description: "Remove the blocked domains.",
+                            type: 3,
+                        },
+                    ]
+
+                },
+
+            ]
+        },
+         */
         {
             name: "bypass",
             description: "Create or remove links that will bypass the filters",
