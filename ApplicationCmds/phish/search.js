@@ -20,7 +20,7 @@ module.exports = {
             if(!interaction.options._hoistedOptions[0].value.match(regex)[0]) return interaction.reply({content: "A domain name could not be parsed from the given input.", ephemeral: true})
             const domain = interaction.options._hoistedOptions[0].value.match(regex)[0]
             const inf = await client.phish.phisherman(interaction.options._hoistedOptions[0].value.match(regex)[0])
-           // const dns = await client.phish.dnsSearch(`${interaction.options._hoistedOptions[0].value.match(regex)[0]}`)
+            const dns = await client.phish.dnsSearch(`${interaction.options._hoistedOptions[0].value.match(regex)[0]}`)
             /*
             new MessageEmbed()
                      .setColor('RANDOM')
@@ -49,7 +49,16 @@ module.exports = {
                     })
              */
 
-            if(!inf[domain] || inf[domain].classification === 'unknown') return interaction.reply({embeds: [ new MessageEmbed().setColor('RED').setDescription(domain).addField("Classification",  "❓ Unknown")]})
+            if(!inf[domain] || inf[domain].classification === 'unknown') return interaction.reply({embeds: [ new MessageEmbed().setColor('RED').setDescription(domain).addField("Classification",  "❓ Unknown").addField("__Whois Server__", dns.whois_server ? dns.whois_server : "No dns server found", true)
+                    .addField("__Registrar__", dns.registrar.name ? dns.registrar.name : "No registrar name found.", true)
+                    .addField("__Iana ID__", dns.registrar.iana_id ? dns.registrar.iana_id : "No iana ID found.", true)
+                    .addField("__Registrant Name__", dns.registrant.name ? dns.registrant.name : "No name found.", true)
+                    .addField("__Registrant Organization__", dns.registrant.organization ? dns.registrant.organization : "No organization registered.", true)
+                    .addField("__Registrant City__", dns.registrant.city ? dns.registrant.city : "No city registered.", true)
+                    .setFooter({
+                        text: `Last updated: ${moment(dns.update_date).format("LL")}`,
+                        iconURL: interaction.member.avatarURL({dynamic: true})
+                    })]})
             if(inf[domain].classification === 'safe') return interaction.reply({embeds: [new MessageEmbed().setDescription(domain).setColor("GREEN").addField('Classification', '<:2585modshieldlightgreenicon:927289585761927168> Safe')]})
             let embed = new MessageEmbed()
 
