@@ -19,7 +19,7 @@ module.exports = {
             const regex = new RegExp(/(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]?/gi);
             if(!interaction.options._hoistedOptions[0].value.match(regex)[0]) return interaction.reply({content: "A domain name could not be parsed from the given input.", ephemeral: true})
             const domain = interaction.options._hoistedOptions[0].value.match(regex)[0]
-            const inf = await client.phish.phisherman(domain)
+            const inf = await client.phish.phisherman(interaction.options._hoistedOptions[0].value.match(regex)[0])
            // const dns = await client.phish.dnsSearch(`${interaction.options._hoistedOptions[0].value.match(regex)[0]}`)
             /*
             new MessageEmbed()
