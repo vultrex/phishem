@@ -21,6 +21,7 @@ module.exports = {
             const domain = interaction.options._hoistedOptions[0].value.match(regex)[0]
             const inf = await client.phish.phisherman(interaction.options._hoistedOptions[0].value.match(regex)[0])
             const dns = await client.phish.dnsSearch(`${interaction.options._hoistedOptions[0].value.match(regex)[0]}`)
+            if(!dns) return interaction.reply({content: "No DNS records found for this domain.", ephemeral: true})
             /*
             new MessageEmbed()
                      .setColor('RANDOM')
