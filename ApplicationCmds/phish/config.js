@@ -75,7 +75,13 @@ module.exports = {
                     type: 5,
                 },
                 {
-                    name: "youtube_filter",
+                  name: "staff-bypass",
+                    description: "If staff members should be able to bypass the filters.",
+                    type: 5,
+
+                },
+                {
+                    name: "youtube-filter",
                     description: "Scan and filter \"free nitro generator\" youtube videos.",
                     type: 5,
                 },
@@ -154,19 +160,7 @@ module.exports = {
     category: "phish",
     run: async(interaction,  client) => {
         Schema.findOne({id: interaction.guild.id}, async (err, data) => {
-            if (!data) {
 
-                const newData = new Schema({
-                    id: interaction.guild.id,
-                    name: interaction.guild.name,
-                })
-                await newData.save()
-                return interaction.reply({content: "Looks like your server wasn't saved in the database correctly, I went ahead and saved it, feel free to run this command again.", ephemeral: true})
-            }
-            if(!interaction.guild.me.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES)) {
-                data.config.delete = false
-                await data.save()
-            }
         switch(interaction.options._subcommand) {
             case "get":
 
@@ -250,44 +244,80 @@ module.exports = {
                         ephemeral: true
                     })
                     if (!interaction.options._hoistedOptions[0].value) {
+                        if(!data.config.delete) return interaction.reply({content: "<:3595failed:926715200172867624> Message deletion is already disabled.", ephemeral: true})
+                        if (data) {
+                            if (data.config.delete) {
+                                data.config.delete = false
+                                await data.save()
+                                return interaction.reply({
+                                    content: "<:9294passed:926715199950561341> Message deletion has been disabled.",
+                                    ephemeral: true
+                                })
 
-
-                            if (data) {
-                                if (data.config.delete) {
-                                    data.config.delete = false
-                                    await data.save()
-                                    return interaction.reply({
-                                        content: "<:9294passed:926715199950561341> The delete links has been turned off!",
-                                        ephemeral: true
-                                    })
-
-                                }
                             }
+                        }
+                    } else {
+                        if(data.config.delete) return interaction.reply({content: "<:3595failed:926715200172867624> Message deletion is already enabled.", ephemeral: true})
+                        data.config.delete = true
+                        await data.save()
+                        return interaction.reply({
+                            content: "<:9294passed:926715199950561341> Message deletion has been enabled.",
+                            ephemeral: true
+                        })
+                    }
 
+
+                    break
+                case "staff-bypass":
+                    if (!interaction.guild.me.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES)) return interaction.reply({
+                        content: "<:3595failed:926715200172867624> I don't have the `Manage Messages` permission!",
+                        ephemeral: true
+                    })
+
+                    if (!interaction.options._hoistedOptions[0].value) {
+                        if(!data.config.ignore_staff) return interaction.reply({content: "<:3595failed:926715200172867624> This setting is already disabled.", ephemeral: true})
+                        if (data) {
+                            if (data.config.ignore_staff) {
+                                data.config.ignore_staff = false
+                                await data.save()
+                                return interaction.reply({
+                                    content: "<:9294passed:926715199950561341> The staff bypass filters have been turned off.",
+                                    ephemeral: true
+                                })
+
+                            }
+                        }
 
 
                     } else {
 
-                            if (data) {
-                                data.config.delete = true
+
+                        if (data) {
+                            if (data.config.ignore_staff) return interaction.reply({
+                                content: "<:3595failed:926715200172867624> This option is already enabled.",
+                                ephemeral: true
+                            })
+                            if (!data.config.ignore_staff) {
+                                data.config.ignore_staff = true
                                 await data.save()
                                 return interaction.reply({
-                                    content: "<:9294passed:926715199950561341> The detected phishing or malicious links will now be deleted.",
+                                    content: "<:9294passed:926715199950561341> Successfully configured, I will now ignore staff members who have `MANAGE_GUILD`, `MANAGE_MESSAGES`, and `MODERATE_MEMBERS`",
                                     ephemeral: true
                                 })
                             }
+                        }
+
 
                     }
-
-
                     break
                 case "youtube-filter":
                     if (!interaction.guild.me.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES)) return interaction.reply({
                         content: "<:3595failed:926715200172867624> I don't have the `Manage Messages` permission!",
                         ephemeral: true
                     })
-                    if (!interaction.options._hoistedOptions[0].value) {
 
+                    if (!interaction.options._hoistedOptions[0].value) {
+                        if(!data.config.youtube_filter) return interaction.reply({content: "<:3595failed:926715200172867624> The youtube filter is already disabled!", ephemeral: true})
                             if (data) {
                                 if (data.config.youtube_filter) {
                                     data.config.youtube_filter = false
@@ -305,6 +335,8 @@ module.exports = {
 
 
                             if (data) {
+                                if(data.config.youtube_filter) return interaction.reply({content: "<:3595failed:926715200172867624> The youtube filter is already enabled!", ephemeral: true})
+
                                 data.config.youtube_filter = true
                                 await data.save()
                                 return interaction.reply({

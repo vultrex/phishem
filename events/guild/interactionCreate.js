@@ -1,14 +1,37 @@
 const Timeout = new Set()
-const { MessageEmbed } = require('discord.js');
+const { MessageEmbed, Permissions} = require('discord.js');
 const humanizeDuration = require("humanize-duration");
+const Schema = require("../../Database/Schema/Guild");
 
 module.exports = async(client, interaction) => {
 	if (interaction.isCommand() || interaction.isContextMenu()) {
 		if (!client.slash.has(interaction.commandName)) return;
 		if (!interaction.guild) return interaction.reply({content: "Slash commands can only be used in a server."});
+
+		try {
+			Schema.findOne({id: interaction.guild.id}, async (err, data) => {
+				if (!data) {
+
+					const newData = new Schema({
+						id: interaction.guild.id,
+						name: interaction.guild.name,
+						config: {
+							ignore_staff: true
+						}
+					})
+					await newData.save()
+					return interaction.reply({content: "Whoops, something went wrong. Please try again."});
+				}
+				if(!interaction.guild.me.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES)) {
+					data.config.delete = false
+					await data.save()
+				}
+			})
+		} catch(e) {
+			return
+		}
 		const command = client.slash.get(interaction.commandName)
 		try {
-
 			if (command.timeout) {
 				if (Timeout.has(`${interaction.user.id}${command.name}`)) {
 					const embed = new MessageEmbed()

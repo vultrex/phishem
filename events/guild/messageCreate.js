@@ -38,7 +38,7 @@ module.exports = async (client , message) => {
         const bitData = await client.phish.bit(message.content)
 
         if(bitData.match) {
-            if (message.member.permissions.has(Permissions.FLAGS.ADMINISTRATOR) || message.member.permissions.has(Permissions.FLAGS.MANAGE_GUILD) || message.member.permissions.has(Permissions.FLAGS.MANAGE_CHANNELS) || message.member.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return;
+            if (message.member.permissions.has(Permissions.FLAGS.ADMINISTRATOR) || message.member.permissions.has(Permissions.FLAGS.MANAGE_GUILD) || message.member.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES) || message.member.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return;
             if(data.config.bypass.includes(bitData.matches.map(m => m.domain))) return;
 
             if(data.config.delete ) {
@@ -64,7 +64,7 @@ module.exports = async (client , message) => {
             }
 
         } else if(youtubeRegex.test(message.content) && data.config.youtube_filter) {
-            if (message.member.permissions.has(Permissions.FLAGS.ADMINISTRATOR) || message.member.permissions.has(Permissions.FLAGS.MANAGE_GUILD) || message.member.permissions.has(Permissions.FLAGS.MANAGE_CHANNELS) || message.member.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return;
+            if (message.member.permissions.has(Permissions.FLAGS.ADMINISTRATOR) || message.member.permissions.has(Permissions.FLAGS.MANAGE_GUILD) || message.member.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES) || message.member.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return;
             const ytLink = new RegExp(/(https?:\/\/[^\s]+)/g)
             if(await client.phish.searchYouTube(message.content.match(ytLink)[0])) {
                 if(data.config.bypass.includes(message.content.match(ytLink)[0])) return;
