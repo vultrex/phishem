@@ -277,7 +277,6 @@ module.exports = {
                         content: "<:3595failed:926715200172867624> I don't have the `Manage Messages` permission!",
                         ephemeral: true
                     })
-
                     if (!interaction.options._hoistedOptions[0].value) {
                         if(!data.config.ignore_staff) return interaction.reply({content: "<:3595failed:926715200172867624> This setting is already disabled.", ephemeral: true})
                         if (data) {
@@ -295,8 +294,6 @@ module.exports = {
 
                     } else {
 
-
-                        if (data) {
                             if (data.config.ignore_staff) return interaction.reply({
                                 content: "<:3595failed:926715200172867624> This option is already enabled.",
                                 ephemeral: true
@@ -309,7 +306,6 @@ module.exports = {
                                     ephemeral: true
                                 })
                             }
-                        }
 
 
                     }
