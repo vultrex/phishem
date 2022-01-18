@@ -128,6 +128,10 @@ module.exports = {
                             value: "delete"
                         },
                         {
+                            name: "Staff-bypass",
+                            value: "sBypass"
+                        },
+                        {
                             name: "Youtube-filter",
                             value: "youtube"
                         },
@@ -485,6 +489,14 @@ module.exports = {
                                 ephemeral: true
                             })
                             break
+                        case "sBypass":
+                            data.config.ignore_staff = true
+                            data.save()
+                            interaction.reply({
+                                content: "<:9294passed:926715199950561341> The configuration has been updated!",
+                                ephemeral: true
+                            })
+                            break
                         case "log":
                             if (await client.channels.cache.get(data.log.webhookChannelID)) {
                                 const loggerWebhook = await client.channels.cache.get(data.log.webhookChannelID).fetchWebhooks()
@@ -540,6 +552,7 @@ module.exports = {
                             data.log.webhookID = null
                             data.log.webhookToken = null
                             data.log.webhookChannelID = null
+                            data.config.ignore_staff = true
                             data.config.action_ban = false
                             data.config.action_kick = false
                             data.config.action_timeout = false
