@@ -9,13 +9,15 @@ module.exports = {
 
         const message = interaction.options.getMessage('message');
         if(!message.guild.me.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return interaction.reply({content: 'I need `MODERATE_MEMBERS` to timeout users.', ephemeral: true})
+            if(message.member.permissions.has(Permissions.FLAGS.ADMINISTRATOR) || message.member.permissions.has(Permissions.FLAGS.MANAGE_GUILD) || message.member.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES) || message.member.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return interaction.reply({content: "You can't timeout the user.", ephemeral: true})
+            if(message.author.id === interaction.member.id) return interaction.reply({content: "You can't timeout yourself.", ephemeral: true})
             if(message.member.isCommunicationDisabled()) return interaction.reply({content: 'User has already been timed out.', ephemeral: true})
-        await message.member.timeout(1000 * 60 * 1000, `Timed out by ${interaction.member.user.tag}`).catch(e => {
-            return interaction.reply(`Looks like there was an issue with timing out the user.`, {ephemeral: true})
-        })
-        interaction.reply({content: `${message.author.tag} has been timed out for 16 hours.`, ephemeral: true})
+        await message.member.timeout(1000 * 60 * 1000, `Timed out by ${interaction.member.user.tag}`)
+            return interaction.reply({content: `${message.author.tag} has been timed out for 16 hours.`, ephemeral: true})
+
         } catch (e) {
-            return interaction.reply({content: `Looks like something odd happened when attempting to time out the user, try again later.`, ephemeral: true})
+            console.log(e)
+            return interaction.reply({content: `Looks like something odd happened when attempting to timeout the user.`, ephemeral: true})
         }
     }
     }
