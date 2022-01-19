@@ -450,15 +450,12 @@ module.exports = {
                     const webhooks = await channel.fetchWebhooks();
                     const web = webhooks.find(wh => wh.owner.id === client.user.id);
 
-                    if (web) {
-                        return interaction.reply({content: "Looks like logging is already enabled!", ephemeral: true})
+                    if (data.log.webhookID && data.log.webhookToken) {
+                        return interaction.reply({
+                            content: "Looks like logging is already enabled on a different channel! If you wish to change channels, please reset the configuration and run this command again.",
+                            ephemeral: true
+                        })
                     } else {
-                        if (data.log.webhookID && data.log.webhookToken) {
-                            return interaction.reply({
-                                content: "Looks like logging is already enabled on a different channel! If you wish to change channels, please reset the configuration and run this command again.",
-                                ephemeral: true
-                            })
-                        }
                         const webhook = await channel.createWebhook('Phish Logger', {
                             avatar: client.user.avatarURL({format: 'png'}),
                         })
@@ -471,6 +468,7 @@ module.exports = {
                             ephemeral: true
                         })
                     }
+
 
                     break;
 
