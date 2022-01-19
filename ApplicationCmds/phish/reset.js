@@ -1,4 +1,6 @@
-const Schema = require("../../Database/Schema/Guild");
+const Schema = require("../../Database/Schema/Guild"),
+    userSchema = require("../../Database/Schema/User"),
+    { MessageEmbed } = require("discord.js");
 module.exports = {
     name: "reset",
     description: "Resets the configurations for the server.",
@@ -53,13 +55,26 @@ module.exports = {
     permissions: "MANAGE_GUILD",
     category: "phish",
     run: async(interaction,  client) => {
-        Schema.findOne({id: interaction.guild.id}, async (err, data) => {
+        if(!interaction.options._hoistedOptions[0]) return interaction.reply({content: "<:3595failed:926715200172867624> You must specify a option!", ephemeral: true})
+        if(interaction.options._hoistedOptions.length > 1) return interaction.reply({content: "<:3595failed:926715200172867624> You can only specify one option!", ephemeral: true})
             switch(interaction.options._hoistedOptions[0].name) {
                 case "infractions":
-                    console.log(interaction.options._hoistedOptions[0].value)
+                    const id = interaction.options._hoistedOptions[0].value;
+                    const user = interaction.options._hoistedOptions[0].user;
+                    if(user.bot) return interaction.message.channel.send("You can't reset infractions for a bot.");
+
+                    userSchema.findOne({user_id: id}, async (err, data) => {
+                        if(!data) return interaction.reply({content: "This user has no infractions.", ephemeral: true})
+                        else {
+                            data.user_warnings = 0;
+                            data.save().then(() => {
+                                interaction.reply({content: "Infractions reset.", ephemeral: true})
+                            })
+                        }
+                    })
                     break
             }
-
+        Schema.findOne({id: interaction.guild.id}, async (err, data) => {
             switch (interaction.options._hoistedOptions[0].value) {
                 case "delete":
                     data.config.delete = false

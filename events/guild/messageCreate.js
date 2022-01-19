@@ -3,7 +3,8 @@ const Timeout = new Set(),
     humanizeDuration = require("humanize-duration"),
     prefix = process.env.prefix,
     Discord = require("discord.js"),
-    Schema = require("../../Database/Schema/Guild")
+    Schema = require("../../Database/Schema/Guild"),
+    userSchema = require("../../Database/Schema/User")
 module.exports = async (client , message) => {
     if (message.author.bot) return;
     if (!message.member) message.member = await message.guild.members.fetch(message.member.id);
@@ -37,38 +38,97 @@ module.exports = async (client , message) => {
         const bitData = await client.phish.bit(message.content)
 
         if(bitData.match) {
+            userSchema.findOne({user_id: message.author.id}, async (err, userData) => {
             if(data.config.ignore_staff) {
                 if(message.member.permissions.has(Permissions.FLAGS.ADMINISTRATOR) || message.member.permissions.has(Permissions.FLAGS.MANAGE_GUILD) || message.member.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES) || message.member.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return
-
             } else {
 
                 if(data.config.bypass.includes(bitData.matches.map(m => m.domain))) return;
+
+                   if(!userData) {
+                       const newUser = new userSchema({
+                           user_id: message.author.id,
+                           user_warnings: 1
+                       })
+                       await newUser.save()
+                   } else {
+                       userData.user_warnings += 1
+                       await userData.save()
+
+                       if(userData.user_warnings > 3) {
+                           if(data.config.action_ban) {
+                               if(!message.guild.me.permissions.has(Permissions.FLAGS.BAN_MEMBERS)) return message.channel.send({content: "I don't have the permission to ban members."}).then(m => setTimeout(() => m.delete(), 5000)); else await message.member.ban({reason: `[Automod] Detected a phishing link from the user.`})
+
+                           }
+                           if(data.config.action_kick) {
+                               if(!message.guild.me.permissions.has(Permissions.FLAGS.KICK_MEMBERS)) return message.channel.send({content: "I don't have the permission to kick members."}).then(m => setTimeout(() => m.delete(), 5000)); else await message.member.kick({reason: `[Automod] Detected a phishing link from the user.`})
+
+                           }
+                           if(data.config.action_timeout) {
+                               if(!message.guild.me.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return message.channel.send({content: "I don't have the permission to moderate members."}).then(m => setTimeout(() => m.delete(), 5000)); else message.member.timeout(10000 * 60 * 1000, '[Automod] Detected a phishing link from the user.')
+
+                           }
+                       }
+                   }
 
                 if(data.config.delete ) {
                     if(!message.guild.me.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES)) return message.channel.send({content: "I don't have the permission to delete messages."}).then(m => setTimeout(() => m.delete(), 5000)); else message.delete({reason: "[Automod] Detected a phishing link from the user."})
 
                 }
-                if(data.config.action_ban) {
-                    if(!message.guild.me.permissions.has(Permissions.FLAGS.BAN_MEMBERS)) return message.channel.send({content: "I don't have the permission to ban members."}).then(m => setTimeout(() => m.delete(), 5000)); else await message.member.ban({reason: `[Automod] Detected a phishing link from the user.`})
-
-                }
-                if(data.config.action_kick) {
-                    if(!message.guild.me.permissions.has(Permissions.FLAGS.KICK_MEMBERS)) return message.channel.send({content: "I don't have the permission to kick members."}).then(m => setTimeout(() => m.delete(), 5000)); else await message.member.kick({reason: `[Automod] Detected a phishing link from the user.`})
-
-                }
-                if(data.config.action_timeout) {
-                    if(!message.guild.me.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return message.channel.send({content: "I don't have the permission to moderate members."}).then(m => setTimeout(() => m.delete(), 5000)); else message.member.timeout(10000 * 60 * 1000, '[Automod] Detected a phishing link from the user.')
-
-                }
-
                 if(data.log.webhookToken && data.log.webhookID) {
 
                     await client.phish.logger(data.log.webhookID, data.log.webhookToken, message.author, bitData.matches.map(m => m.domain), message.content, message.channel.id, Math.floor(new Date().getTime() / 1000))
                 }
-            }
 
+
+
+            }
+            })
 /* split */
 
+            /*
+            else if(youtubeRegex.test(message.content) && data.config.youtube_filter) {
+
+            if(data.config.ignore_staff) {
+
+                if(message.member.permissions.has(Permissions.FLAGS.ADMINISTRATOR) || message.member.permissions.has(Permissions.FLAGS.MANAGE_GUILD) || message.member.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES) || message.member.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return
+
+            } else {
+                userSchema.findOne({user_id: message.author.id}, async (err, userData) => {
+                    if (data.config.delete) message.delete({reason: "[Automod] Detected a phishing link from the user."})
+                    else return
+                    if(!userData) {
+                        const newUser = new userSchema({
+                            user_id: message.author.id,
+                            user_warnings: 1
+                        })
+                        await newUser.save()
+                    } else {
+                        userData.user_warnings += 1
+                        await userData.save()
+                       if(userData.user_warnings > 3) {
+                           const ytLink = new RegExp(/(https?:\/\/[^\s]+)/g)
+                           if (await client.phish.searchYouTube(message.content.match(ytLink)[0])) {
+                               if (data.config.bypass.includes(message.content.match(ytLink)[0])) return;
+                               if (data.config.action_timeout) await message.member.timeout(10000 * 60 * 1000, '[Automod] Detected a phishing link from the user.')
+
+                               if (data.log.webhookToken && data.log.webhookID) {
+                                   await client.phish.youtubeLogger(data.log.webhookID, data.log.webhookToken, message.author, message.content.match(ytLink)[0], message.content, message.channel.id, Math.floor(new Date().getTime() / 1000))
+                               } else return
+
+                           } else {
+                               return
+                           }
+                       }
+                    }
+
+
+                })
+            }
+
+
+        }
+             */
         } else if(youtubeRegex.test(message.content) && data.config.youtube_filter) {
 
             if(data.config.ignore_staff) {

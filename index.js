@@ -13,7 +13,6 @@ client.aliases = new Collection();
 ["handlers", "events", "slash"].forEach(handler => {
     require(`./handlers/${handler}`)(client);
 });
-
 mongoose.connect(process.env.MONGOSTRING, {useNewUrlParser: true, useUnifiedTopology: true}).then(() => {
 	console.log(`[ Database ]`.green + ' Connected to MongoDB')
 }).catch((err) => {
