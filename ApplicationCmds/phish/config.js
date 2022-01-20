@@ -116,6 +116,10 @@ module.exports = {
     permissions: "MANAGE_GUILD",
     category: "phish",
     run: async(interaction,  client) => {
+
+        if(!interaction.options._hoistedOptions[0]) return interaction.reply({content: "<:3595failed:926715200172867624> You must specify a option!", ephemeral: true})
+        if(interaction.options._hoistedOptions.length > 1) return interaction.reply({content: "<:3595failed:926715200172867624> You can only specify one option!", ephemeral: true})
+
         Schema.findOne({id: interaction.guild.id}, async (err, data) => {
 
         switch(interaction.options._subcommand) {
