@@ -117,8 +117,6 @@ module.exports = {
     category: "phish",
     run: async(interaction,  client) => {
 
-        if(!interaction.options._hoistedOptions[0]) return interaction.reply({content: "<:3595failed:926715200172867624> You must specify a option!", ephemeral: true})
-        if(interaction.options._hoistedOptions.length > 1) return interaction.reply({content: "<:3595failed:926715200172867624> You can only specify one option!", ephemeral: true})
 
         Schema.findOne({id: interaction.guild.id}, async (err, data) => {
 
@@ -230,6 +228,9 @@ module.exports = {
 
                     break
                 case "staff-bypass":
+                    if(!interaction.options._hoistedOptions[0]) return interaction.reply({content: "<:3595failed:926715200172867624> You must specify a option!", ephemeral: true})
+                    if(interaction.options._hoistedOptions.length > 1) return interaction.reply({content: "<:3595failed:926715200172867624> You can only specify one option!", ephemeral: true})
+
                     if (!interaction.guild.me.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES)) return interaction.reply({
                         content: "<:3595failed:926715200172867624> I don't have the `Manage Messages` permission!",
                         ephemeral: true
@@ -268,6 +269,9 @@ module.exports = {
                     }
                     break
                 case "youtube-filter":
+                    if(!interaction.options._hoistedOptions[0]) return interaction.reply({content: "<:3595failed:926715200172867624> You must specify a option!", ephemeral: true})
+                    if(interaction.options._hoistedOptions.length > 1) return interaction.reply({content: "<:3595failed:926715200172867624> You can only specify one option!", ephemeral: true})
+
                     if (!interaction.guild.me.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES)) return interaction.reply({
                         content: "<:3595failed:926715200172867624> I don't have the `Manage Messages` permission!",
                         ephemeral: true
@@ -306,6 +310,8 @@ module.exports = {
                     }
                     break
                 case "action":
+                    if(!interaction.options._hoistedOptions[0]) return interaction.reply({content: "<:3595failed:926715200172867624> You must specify a option!", ephemeral: true})
+                    if(interaction.options._hoistedOptions.length > 1) return interaction.reply({content: "<:3595failed:926715200172867624> You can only specify one option!", ephemeral: true})
 
                     switch (value[0].value) {
                         case "ban":
