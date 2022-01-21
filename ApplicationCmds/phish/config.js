@@ -117,7 +117,6 @@ module.exports = {
     category: "phish",
     run: async(interaction,  client) => {
 
-
         Schema.findOne({id: interaction.guild.id}, async (err, data) => {
 
         switch(interaction.options._subcommand) {
@@ -186,259 +185,257 @@ module.exports = {
                 }
 
                 break
+            case "set":
+                if(!interaction.options._hoistedOptions[0]) return interaction.reply({content: "<:3595failed:926715200172867624> You must specify a option!", ephemeral: true})
+                if(interaction.options._hoistedOptions.length > 1) return interaction.reply({content: "<:3595failed:926715200172867624> You can only specify one option!", ephemeral: true})
+
+                const value = interaction.options._hoistedOptions
+                if(value[0]) {
+
+                    Schema.findOne({id: interaction.guild.id}, async (err, data) => {
+
+                        switch(interaction.options._hoistedOptions[0].name) {
+                            case "delete":
+                                if (!interaction.guild.me.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES)) return interaction.reply({
+                                    content: "<:3595failed:926715200172867624> I don't have the `Manage Messages` permission!",
+                                    ephemeral: true
+                                })
+                                if (!interaction.options._hoistedOptions[0].value) {
+                                    if(!data.config.delete) return interaction.reply({content: "<:3595failed:926715200172867624> Message deletion is already disabled.", ephemeral: true})
+                                    if (data) {
+                                        if (data.config.delete) {
+                                            data.config.delete = false
+                                            await data.save()
+                                            return interaction.reply({
+                                                content: "<:9294passed:926715199950561341> Message deletion has been disabled.",
+                                                ephemeral: true
+                                            })
+
+                                        }
+                                    }
+                                } else {
+                                    if(data.config.delete) return interaction.reply({content: "<:3595failed:926715200172867624> Message deletion is already enabled.", ephemeral: true})
+                                    data.config.delete = true
+                                    await data.save()
+                                    return interaction.reply({
+                                        content: "<:9294passed:926715199950561341> Message deletion has been enabled.",
+                                        ephemeral: true
+                                    })
+                                }
+
+
+                                break
+                            case "staff-bypass":
+                                if (!interaction.guild.me.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES)) return interaction.reply({
+                                    content: "<:3595failed:926715200172867624> I don't have the `Manage Messages` permission!",
+                                    ephemeral: true
+                                })
+                                if (!interaction.options._hoistedOptions[0].value) {
+                                    if(!data.config.ignore_staff) return interaction.reply({content: "<:3595failed:926715200172867624> This setting is already disabled.", ephemeral: true})
+                                    if (data) {
+                                        if (data.config.ignore_staff) {
+                                            data.config.ignore_staff = false
+                                            await data.save()
+                                            return interaction.reply({
+                                                content: "<:9294passed:926715199950561341> The staff bypass filters have been turned off.",
+                                                ephemeral: true
+                                            })
+
+                                        }
+                                    }
+
+
+                                } else {
+
+                                    if (data.config.ignore_staff) return interaction.reply({
+                                        content: "<:3595failed:926715200172867624> This option is already enabled.",
+                                        ephemeral: true
+                                    })
+                                    if (!data.config.ignore_staff) {
+                                        data.config.ignore_staff = true
+                                        await data.save()
+                                        return interaction.reply({
+                                            content: "<:9294passed:926715199950561341> Successfully configured, I will now ignore staff members who have `MANAGE_GUILD`, `MANAGE_MESSAGES`, and `MODERATE_MEMBERS`",
+                                            ephemeral: true
+                                        })
+                                    }
+
+
+                                }
+                                break
+                            case "youtube-filter":
+
+                                if (!interaction.guild.me.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES)) return interaction.reply({
+                                    content: "<:3595failed:926715200172867624> I don't have the `Manage Messages` permission!",
+                                    ephemeral: true
+                                })
+
+                                if (!interaction.options._hoistedOptions[0].value) {
+                                    if(!data.config.youtube_filter) return interaction.reply({content: "<:3595failed:926715200172867624> The youtube filter is already disabled!", ephemeral: true})
+                                    if (data) {
+                                        if (data.config.youtube_filter) {
+                                            data.config.youtube_filter = false
+                                            await data.save()
+                                            return interaction.reply({
+                                                content: "<:9294passed:926715199950561341> The youtube filters have been turned off.",
+                                                ephemeral: true
+                                            })
+
+                                        }
+                                    }
+
+
+                                } else {
+
+
+                                    if (data) {
+                                        if(data.config.youtube_filter) return interaction.reply({content: "<:3595failed:926715200172867624> The youtube filter is already enabled!", ephemeral: true})
+
+                                        data.config.youtube_filter = true
+                                        await data.save()
+                                        return interaction.reply({
+                                            content: "<:9294passed:926715199950561341> Successfully configured, I will now filter youtube videos that get sent.",
+                                            ephemeral: true
+                                        })
+                                    }
+
+
+                                }
+                                break
+                            case "action":
+
+
+                                switch (value[0].value) {
+                                    case "ban":
+
+
+                                        if (data) {
+                                            if (data.config.action_kick) return interaction.reply({
+                                                content: "<:3595failed:926715200172867624> You can't enable both kick and ban.",
+                                                ephemeral: true
+                                            })
+                                            if (data.config.action_ban) return interaction.reply({
+                                                content: "<:3595failed:926715200172867624> The configuration has already been set!",
+                                                ephemeral: true
+                                            })
+                                            else {
+                                                if (!interaction.guild.me.permissions.has(Permissions.FLAGS.BAN_MEMBERS)) return interaction.reply({
+                                                    content: "<:3595failed:926715200172867624> I don't have the `Ban Members` permission!",
+                                                    ephemeral: true
+                                                })
+                                                data.config.action_ban = true
+                                                await data.save()
+                                                return interaction.reply({
+                                                    content: "<:9294passed:926715199950561341> Configuration updated!",
+                                                    ephemeral: true
+                                                })
+                                            }
+                                        }
+
+
+                                        break
+                                    case "kick":
+
+                                        if (data) {
+                                            if (data.config.action_ban) return interaction.reply({
+                                                content: "<:3595failed:926715200172867624> You can't enable both kick and ban.",
+                                                ephemeral: true
+                                            })
+                                            if (data.config.action_kick) return interaction.reply({
+                                                content: "<:3595failed:926715200172867624> The configuration has already been set!",
+                                                ephemeral: true
+                                            })
+                                            else {
+                                                if (!interaction.guild.me.permissions.has(Permissions.FLAGS.KICK_MEMBERS)) return interaction.reply({
+                                                    content: "<:3595failed:926715200172867624> I don't have the `Kick Members` permission!",
+                                                    ephemeral: true
+                                                })
+                                                data.config.action_kick = true
+                                                await data.save()
+                                                return interaction.reply({
+                                                    content: "<:9294passed:926715199950561341> Configuration updated!",
+                                                    ephemeral: true
+                                                })
+                                            }
+                                        }
+
+                                        break;
+                                    case "timeout":
+
+
+                                        if (data) {
+                                            if (data.config.action_timeout) return interaction.reply({
+                                                content: "<:3595failed:926715200172867624> The configuration has already been set!",
+                                                ephemeral: true
+                                            })
+                                            else {
+                                                if (!interaction.guild.me.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return interaction.reply({
+                                                    content: "<:3595failed:926715200172867624> I don't have the `Moderate Members` permission!",
+                                                    ephemeral: true
+                                                })
+                                                data.config.action_timeout = true
+                                                await data.save()
+                                                return interaction.reply({
+                                                    content: "<:9294passed:926715199950561341> Configuration updated!",
+                                                    ephemeral: true
+                                                })
+                                            }
+                                        }
+
+                                        break;
+                                    case "reset":
+                                        data.config.action_ban = false
+                                        data.config.action_kick = false
+                                        data.config.action_timeout = false
+                                        await data.save()
+                                        interaction.reply({
+                                            content: "<:9294passed:926715199950561341> Configurations have been reset!",
+                                            ephemeral: true
+                                        })
+                                        break;
+                                }
+                                break
+
+                            case "log":
+                                const channel = await client.channels.cache.get(interaction.options._hoistedOptions[0].value)
+                                if (channel.type !== "GUILD_TEXT") return interaction.reply({
+                                    content: "<:3595failed:926715200172867624> The channel must be a text channel!",
+                                    ephemeral: true
+                                })
+                                const webhooks = await channel.fetchWebhooks();
+                                const web = webhooks.find(wh => wh.owner.id === client.user.id);
+
+                                if (data.log.webhookID && data.log.webhookToken) {
+                                    return interaction.reply({
+                                        content: "Looks like logging is already enabled on a different channel! If you wish to change channels, please reset the configuration and run this command again.",
+                                        ephemeral: true
+                                    })
+                                } else {
+                                    const webhook = await channel.createWebhook('Phish Logger', {
+                                        avatar: client.user.avatarURL({format: 'png'}),
+                                    })
+                                    data.log.webhookID = webhook.id
+                                    data.log.webhookToken = webhook.token
+                                    data.log.webhookChannelID = channel.id
+                                    data.save()
+                                    interaction.reply({
+                                        content: `<:9294passed:926715199950561341> \`${channel.name}\` has been set as the log channel.`,
+                                        ephemeral: true
+                                    })
+                                }
+
+
+                                break;
+
+
+                        }
+                    })
+                }
+                break
         }
         })
 
-        const value = interaction.options._hoistedOptions
-        if(value[0]) {
-            if(!value[0]) return interaction.reply({content: "<:3595failed:926715200172867624> You must specify a option!", ephemeral: true})
-            if(value.length > 1) return interaction.reply({content: "<:3595failed:926715200172867624> You can only specify one option!", ephemeral: true})
 
-            Schema.findOne({id: interaction.guild.id}, async (err, data) => {
-
-            switch(interaction.options._hoistedOptions[0].name) {
-                case "delete":
-                    if (!interaction.guild.me.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES)) return interaction.reply({
-                        content: "<:3595failed:926715200172867624> I don't have the `Manage Messages` permission!",
-                        ephemeral: true
-                    })
-                    if (!interaction.options._hoistedOptions[0].value) {
-                        if(!data.config.delete) return interaction.reply({content: "<:3595failed:926715200172867624> Message deletion is already disabled.", ephemeral: true})
-                        if (data) {
-                            if (data.config.delete) {
-                                data.config.delete = false
-                                await data.save()
-                                return interaction.reply({
-                                    content: "<:9294passed:926715199950561341> Message deletion has been disabled.",
-                                    ephemeral: true
-                                })
-
-                            }
-                        }
-                    } else {
-                        if(data.config.delete) return interaction.reply({content: "<:3595failed:926715200172867624> Message deletion is already enabled.", ephemeral: true})
-                        data.config.delete = true
-                        await data.save()
-                        return interaction.reply({
-                            content: "<:9294passed:926715199950561341> Message deletion has been enabled.",
-                            ephemeral: true
-                        })
-                    }
-
-
-                    break
-                case "staff-bypass":
-                    if(!interaction.options._hoistedOptions[0]) return interaction.reply({content: "<:3595failed:926715200172867624> You must specify a option!", ephemeral: true})
-                    if(interaction.options._hoistedOptions.length > 1) return interaction.reply({content: "<:3595failed:926715200172867624> You can only specify one option!", ephemeral: true})
-
-                    if (!interaction.guild.me.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES)) return interaction.reply({
-                        content: "<:3595failed:926715200172867624> I don't have the `Manage Messages` permission!",
-                        ephemeral: true
-                    })
-                    if (!interaction.options._hoistedOptions[0].value) {
-                        if(!data.config.ignore_staff) return interaction.reply({content: "<:3595failed:926715200172867624> This setting is already disabled.", ephemeral: true})
-                        if (data) {
-                            if (data.config.ignore_staff) {
-                                data.config.ignore_staff = false
-                                await data.save()
-                                return interaction.reply({
-                                    content: "<:9294passed:926715199950561341> The staff bypass filters have been turned off.",
-                                    ephemeral: true
-                                })
-
-                            }
-                        }
-
-
-                    } else {
-
-                            if (data.config.ignore_staff) return interaction.reply({
-                                content: "<:3595failed:926715200172867624> This option is already enabled.",
-                                ephemeral: true
-                            })
-                            if (!data.config.ignore_staff) {
-                                data.config.ignore_staff = true
-                                await data.save()
-                                return interaction.reply({
-                                    content: "<:9294passed:926715199950561341> Successfully configured, I will now ignore staff members who have `MANAGE_GUILD`, `MANAGE_MESSAGES`, and `MODERATE_MEMBERS`",
-                                    ephemeral: true
-                                })
-                            }
-
-
-                    }
-                    break
-                case "youtube-filter":
-                    if(!interaction.options._hoistedOptions[0]) return interaction.reply({content: "<:3595failed:926715200172867624> You must specify a option!", ephemeral: true})
-                    if(interaction.options._hoistedOptions.length > 1) return interaction.reply({content: "<:3595failed:926715200172867624> You can only specify one option!", ephemeral: true})
-
-                    if (!interaction.guild.me.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES)) return interaction.reply({
-                        content: "<:3595failed:926715200172867624> I don't have the `Manage Messages` permission!",
-                        ephemeral: true
-                    })
-
-                    if (!interaction.options._hoistedOptions[0].value) {
-                        if(!data.config.youtube_filter) return interaction.reply({content: "<:3595failed:926715200172867624> The youtube filter is already disabled!", ephemeral: true})
-                            if (data) {
-                                if (data.config.youtube_filter) {
-                                    data.config.youtube_filter = false
-                                    await data.save()
-                                    return interaction.reply({
-                                        content: "<:9294passed:926715199950561341> The youtube filters have been turned off.",
-                                        ephemeral: true
-                                    })
-
-                                }
-                            }
-
-
-                    } else {
-
-
-                            if (data) {
-                                if(data.config.youtube_filter) return interaction.reply({content: "<:3595failed:926715200172867624> The youtube filter is already enabled!", ephemeral: true})
-
-                                data.config.youtube_filter = true
-                                await data.save()
-                                return interaction.reply({
-                                    content: "<:9294passed:926715199950561341> Successfully configured, I will now filter youtube videos that get sent.",
-                                    ephemeral: true
-                                })
-                            }
-
-
-                    }
-                    break
-                case "action":
-                    if(!interaction.options._hoistedOptions[0]) return interaction.reply({content: "<:3595failed:926715200172867624> You must specify a option!", ephemeral: true})
-                    if(interaction.options._hoistedOptions.length > 1) return interaction.reply({content: "<:3595failed:926715200172867624> You can only specify one option!", ephemeral: true})
-
-                    switch (value[0].value) {
-                        case "ban":
-
-
-                                if (data) {
-                                    if (data.config.action_kick) return interaction.reply({
-                                        content: "<:3595failed:926715200172867624> You can't enable both kick and ban.",
-                                        ephemeral: true
-                                    })
-                                    if (data.config.action_ban) return interaction.reply({
-                                        content: "<:3595failed:926715200172867624> The configuration has already been set!",
-                                        ephemeral: true
-                                    })
-                                    else {
-                                        if (!interaction.guild.me.permissions.has(Permissions.FLAGS.BAN_MEMBERS)) return interaction.reply({
-                                            content: "<:3595failed:926715200172867624> I don't have the `Ban Members` permission!",
-                                            ephemeral: true
-                                        })
-                                        data.config.action_ban = true
-                                        await data.save()
-                                        return interaction.reply({
-                                            content: "<:9294passed:926715199950561341> Configuration updated!",
-                                            ephemeral: true
-                                        })
-                                    }
-                                }
-
-
-                            break
-                        case "kick":
-
-                                if (data) {
-                                    if (data.config.action_ban) return interaction.reply({
-                                        content: "<:3595failed:926715200172867624> You can't enable both kick and ban.",
-                                        ephemeral: true
-                                    })
-                                    if (data.config.action_kick) return interaction.reply({
-                                        content: "<:3595failed:926715200172867624> The configuration has already been set!",
-                                        ephemeral: true
-                                    })
-                                    else {
-                                        if (!interaction.guild.me.permissions.has(Permissions.FLAGS.KICK_MEMBERS)) return interaction.reply({
-                                            content: "<:3595failed:926715200172867624> I don't have the `Kick Members` permission!",
-                                            ephemeral: true
-                                        })
-                                        data.config.action_kick = true
-                                        await data.save()
-                                        return interaction.reply({
-                                            content: "<:9294passed:926715199950561341> Configuration updated!",
-                                            ephemeral: true
-                                        })
-                                    }
-                                }
-
-                            break;
-                        case "timeout":
-
-
-                                if (data) {
-                                    if (data.config.action_timeout) return interaction.reply({
-                                        content: "<:3595failed:926715200172867624> The configuration has already been set!",
-                                        ephemeral: true
-                                    })
-                                    else {
-                                        if (!interaction.guild.me.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return interaction.reply({
-                                            content: "<:3595failed:926715200172867624> I don't have the `Moderate Members` permission!",
-                                            ephemeral: true
-                                        })
-                                        data.config.action_timeout = true
-                                        await data.save()
-                                        return interaction.reply({
-                                            content: "<:9294passed:926715199950561341> Configuration updated!",
-                                            ephemeral: true
-                                        })
-                                    }
-                                }
-
-                            break;
-                        case "reset":
-                            data.config.action_ban = false
-                            data.config.action_kick = false
-                            data.config.action_timeout = false
-                            await data.save()
-                            interaction.reply({
-                                content: "<:9294passed:926715199950561341> Configurations have been reset!",
-                                ephemeral: true
-                            })
-                            break;
-                    }
-                    break
-
-                case "log":
-                    const channel = await client.channels.cache.get(interaction.options._hoistedOptions[0].value)
-                    if (channel.type !== "GUILD_TEXT") return interaction.reply({
-                        content: "<:3595failed:926715200172867624> The channel must be a text channel!",
-                        ephemeral: true
-                    })
-                    const webhooks = await channel.fetchWebhooks();
-                    const web = webhooks.find(wh => wh.owner.id === client.user.id);
-
-                    if (data.log.webhookID && data.log.webhookToken) {
-                        return interaction.reply({
-                            content: "Looks like logging is already enabled on a different channel! If you wish to change channels, please reset the configuration and run this command again.",
-                            ephemeral: true
-                        })
-                    } else {
-                        const webhook = await channel.createWebhook('Phish Logger', {
-                            avatar: client.user.avatarURL({format: 'png'}),
-                        })
-                        data.log.webhookID = webhook.id
-                        data.log.webhookToken = webhook.token
-                        data.log.webhookChannelID = channel.id
-                        data.save()
-                        interaction.reply({
-                            content: `<:9294passed:926715199950561341> \`${channel.name}\` has been set as the log channel.`,
-                            ephemeral: true
-                        })
-                    }
-
-
-                    break;
-
-
-            }
-            })
-        }
 
     }
 
