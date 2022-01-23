@@ -49,7 +49,7 @@ module.exports = {
                        new MessageEmbed()
                            .setURL(`https://discord.com/users/${user}`)
                            .setTitle(`${(await globaluser).username}#${(await globaluser).discriminator} | ${(await globaluser).id}`)
-                           .setDescription(`**Bot**: \`${(await globaluser).bot}\`\n**Created at**: \`${require('moment')((await globaluser).createdAt).format('LLL')}\` (<t:${require('moment')((await globaluser).createdAt).format('X')}:R>)\n${joined}**In server**: \`${inServer}\`\n**User flags** \`${flags}\``)
+                           .setDescription(`**Bot**: \`${(await globaluser).bot}\`\n**Created at**: \`${require('moment')((await globaluser).createdAt).format('LLL')}\` (<t:${require('moment')((await globaluser).createdAt).format('X')}:R>)\n**User flags** \`${flags}\``)
                            .setThumbnail((await globaluser).displayAvatarURL({ dynamic: true }))
                            .setColor('#0099ff')
                            .setImage(banner)
