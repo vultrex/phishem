@@ -8,8 +8,6 @@ module.exports = {
     run: async(client, message, args) => {
         if (!process.env.developers.includes(message.author.id)) return;
         message.channel.send("<a:z_loading:824333262637367307> Executing. . .").then((m) => {
-            if (message.author.id !== "750510159289254008")
-                return message.channel.send("The command you are trying to use is not available.");
             if (!args.join(" "))
                 return message.reply("Please input a console command.");
 
