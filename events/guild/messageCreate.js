@@ -55,7 +55,7 @@ module.exports = async (client , message) => {
                        userData.user_warnings += 1
                        await userData.save()
 
-                       if(userData.user_warnings > 3) {
+                       if(userData.user_warnings >= 3) {
                            if(data.config.action_ban) {
                                if(!message.guild.me.permissions.has(Permissions.FLAGS.BAN_MEMBERS)) return message.channel.send({content: "I don't have the permission to ban members."}).then(m => setTimeout(() => m.delete(), 5000)); else await message.member.ban({reason: `[Automod] Detected a phishing link from the user.`})
 
