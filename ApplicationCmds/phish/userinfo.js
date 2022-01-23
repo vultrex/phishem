@@ -22,14 +22,6 @@ module.exports = {
                if(!globaluser) {
                    return interaction.reply({content: "User not found.", ephemeral: true})
                }
-               const member = interaction.guild.members.cache.get(user);
-               const inServer = !!member;
-               let joined = ''
-               if(member) {
-                   joined = `${moment(member.joinedAt).format('LLL')} (<t:${moment(member.joinedAt).format("X")}:R>)\n`
-               } else {
-                   joined = "**Joined at** `Unknown`\n"
-               }
                let us = await fetch(`https://japi.rest/discord/v1/user/${(await globaluser).id}`).then(res => res.json())
                let banner = us.data.bannerURL
                if(!banner) {
