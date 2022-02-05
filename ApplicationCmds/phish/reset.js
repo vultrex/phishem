@@ -36,10 +36,6 @@ module.exports = {
                     value: "action"
                 },
                 {
-                    name: "Action",
-                    value: "action"
-                },
-                {
                     name: "Domains",
                     value: "domains"
                 },
@@ -128,6 +124,14 @@ module.exports = {
                         ephemeral: true
                     })
                     break
+                case "staff-bypass":
+                    data.config.ignore_staff = true;
+                    await data.save()
+                    interaction.reply({
+                        content: "<:9294passed:926715199950561341> Configurations have been reset!",
+                        ephemeral: true
+                    })
+                    break
                 case "domains":
                     data.config.bypass = []
                     data.save()
@@ -150,6 +154,7 @@ module.exports = {
                     data.config.ignore_staff = true
                     data.config.action_ban = false
                     data.config.action_kick = false
+                    data.config.ignore_staff = true;
                     data.config.action_timeout = false
                     data.config.youtube_filter = false
                     data.config.delete = false
