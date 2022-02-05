@@ -1,5 +1,5 @@
 const Timeout = new Set(),
-    { MessageEmbed, Permissions } = require('discord.js'),
+    { MessageEmbed, Permissions, WebhookClient} = require('discord.js'),
     humanizeDuration = require("humanize-duration"),
     prefix = process.env.prefix,
     Discord = require("discord.js"),
@@ -11,153 +11,167 @@ module.exports = async (client , message) => {
     if (!message.guild) return;
 
     const mention = new RegExp(`^<@!?${client.user.id}>`);
-/*
-    if(mention.test(message.content)) {
-        return message.channel.send({
-            embeds: [
+    /*
+        if(mention.test(message.content)) {
+            return message.channel.send({
+                embeds: [
 
-                new Discord.MessageEmbed()
-                    .setColor(2201842)
-                    .setAuthor({
-                        name: client.user.username,
-                        iconURL: client.user.displayAvatarURL({ format: 'png'})
-                    })
-                    .setDescription("Phishem - Another advanced phish detection bot with YouTube video filtering.\n\nUpon inviting Phishem to your server, auto deletion of of the filters are automatically enabled, but you can enable more functions and configurations with the provided slash commands. \n\n__Slash Information__: \n```bash\n/configure get \"Gets your server's current configurations settings, saying if something is on or off.\"\n\n/search \"Check urls or domains against the phishing databases.\"\n\n/configure bypass \n-----create \"Add links that will be ignored by the filters.\"\n-----remove \"Delete a bypass link which will no longer be ignored.\"\n\n/configure set \n-----delete \"Either enable or disable message deletion upon a positive detection\" \n-----youtube-filter \"Either enable or disable YouTube video filtering for fake nitro generator videos.\"\n-----log \"Set your log channel to get notifications if a phishing or malicious is found.\"\n-----action \"Enable if the bot is either going to ban, kick, or timeout the user when a filter gets triggered.\"\n\n/configure reset \n-----configurations \"Show all the server configurations to reset\"\n---------Delete \"Disables message deletion.\"\n---------YouTube-filter \"Disable YouTube filtering.\" \n---------Log \"Disables logging and delete the logger webhook from the channel.\"\n---------Actions \"Disables all the actions.\"\n---------All \"Disables and resets all the configurations.\" \n```")
+                    new Discord.MessageEmbed()
+                        .setColor(2201842)
+                        .setAuthor({
+                            name: client.user.username,
+                            iconURL: client.user.displayAvatarURL({ format: 'png'})
+                        })
+                        .setDescription("Phishem - Another advanced phish detection bot with YouTube video filtering.\n\nUpon inviting Phishem to your server, auto deletion of of the filters are automatically enabled, but you can enable more functions and configurations with the provided slash commands. \n\n__Slash Information__: \n```bash\n/configure get \"Gets your server's current configurations settings, saying if something is on or off.\"\n\n/search \"Check urls or domains against the phishing databases.\"\n\n/configure bypass \n-----create \"Add links that will be ignored by the filters.\"\n-----remove \"Delete a bypass link which will no longer be ignored.\"\n\n/configure set \n-----delete \"Either enable or disable message deletion upon a positive detection\" \n-----youtube-filter \"Either enable or disable YouTube video filtering for fake nitro generator videos.\"\n-----log \"Set your log channel to get notifications if a phishing or malicious is found.\"\n-----action \"Enable if the bot is either going to ban, kick, or timeout the user when a filter gets triggered.\"\n\n/configure reset \n-----configurations \"Show all the server configurations to reset\"\n---------Delete \"Disables message deletion.\"\n---------YouTube-filter \"Disable YouTube filtering.\" \n---------Log \"Disables logging and delete the logger webhook from the channel.\"\n---------Actions \"Disables all the actions.\"\n---------All \"Disables and resets all the configurations.\" \n```")
 
 
-            ]
-        })
-    }
+                ]
+            })
+        }
 
- */
+     */
     const youtubeRegex = new RegExp(/(?:https?:\/\/)?(?:www\.)?youtu\.?be(?:\.com)?\/?.*(?:watch|embed)?(?:.*v=|v\/|\/)([\w\-_]+)\&?/gi)
     Schema.findOne({id: message.guild.id}, async (err, data) => {
 
-    if(new RegExp(/(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]?/gi)) {
+        if(new RegExp(/(?:[A-z0-9](?:[A-z0-9-]{0,61}[A-z0-9])?\.)+[A-z0-9][A-z0-9-]{0,61}[A-z0-9]/gi)) {
 
-        const bitData = await client.phish.bit(message.content)
+            const bitData = await client.phish.bit(message.content)
 
-        if(bitData.match) {
-            userSchema.findOne({user_id: message.author.id}, async (err, userData) => {
-            if(data.config.ignore_staff) {
-                if(message.member.permissions.has(Permissions.FLAGS.ADMINISTRATOR) || message.member.permissions.has(Permissions.FLAGS.MANAGE_GUILD) || message.member.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES) || message.member.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return
-            } else {
-
-                if(data.config.bypass.includes(bitData.matches.map(m => m.domain))) return;
-
-                   if(!userData) {
-                       const newUser = new userSchema({
-                           user_id: message.author.id,
-                           user_warnings: 1
-                       })
-                       await newUser.save()
-                   } else {
-                       userData.user_warnings += 1
-                       await userData.save()
-
-                       if(userData.user_warnings >= 3) {
-                           if(message.member.permissions.has(Permissions.FLAGS.ADMINISTRATOR) || message.member.permissions.has(Permissions.FLAGS.MANAGE_GUILD) || message.member.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES) || message.member.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return
-
-                           if(data.config.action_ban) {
-                               if(!message.guild.me.permissions.has(Permissions.FLAGS.BAN_MEMBERS)) return message.channel.send({content: "I don't have the permission to ban members."}).then(m => setTimeout(() => m.delete(), 5000)); else await message.member.ban({reason: `[Automod] Detected a phishing link from the user.`})
-
-                           }
-                           if(data.config.action_kick) {
-                               if(!message.guild.me.permissions.has(Permissions.FLAGS.KICK_MEMBERS)) return message.channel.send({content: "I don't have the permission to kick members."}).then(m => setTimeout(() => m.delete(), 5000)); else await message.member.kick({reason: `[Automod] Detected a phishing link from the user.`})
-
-                           }
-                           if(data.config.action_timeout) {
-                               if(!message.guild.me.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return message.channel.send({content: "I don't have the permission to moderate members."}).then(m => setTimeout(() => m.delete(), 5000)); else message.member.timeout(10000 * 60 * 1000, '[Automod] Detected a phishing link from the user.')
-
-                           }
-                       }
-                   }
-
-                if(data.config.delete ) {
-                    if(!message.guild.me.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES)) return message.channel.send({content: "I don't have the permission to delete messages."}).then(m => setTimeout(() => m.delete(), 5000)); else message.delete({reason: "[Automod] Detected a phishing link from the user."})
-
-                }
-                if(data.log.webhookToken && data.log.webhookID) {
-
-                    await client.phish.logger(data.log.webhookID, data.log.webhookToken, message.author, bitData.matches.map(m => m.domain), message.content, message.channel.id, Math.floor(new Date().getTime() / 1000))
-                }
-
-
-
-            }
-            })
-/* split */
-
-            /*
-            else if(youtubeRegex.test(message.content) && data.config.youtube_filter) {
-
-            if(data.config.ignore_staff) {
-
-                if(message.member.permissions.has(Permissions.FLAGS.ADMINISTRATOR) || message.member.permissions.has(Permissions.FLAGS.MANAGE_GUILD) || message.member.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES) || message.member.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return
-
-            } else {
+            if(bitData.match) {
                 userSchema.findOne({user_id: message.author.id}, async (err, userData) => {
-                    if (data.config.delete) message.delete({reason: "[Automod] Detected a phishing link from the user."})
-                    else return
-                    if(!userData) {
-                        const newUser = new userSchema({
-                            user_id: message.author.id,
-                            user_warnings: 1
-                        })
-                        await newUser.save()
+                    if(data.config.ignore_staff) {
+                        if(message.member.permissions.has(Permissions.FLAGS.ADMINISTRATOR) || message.member.permissions.has(Permissions.FLAGS.MANAGE_GUILD) || message.member.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES) || message.member.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return
                     } else {
-                        userData.user_warnings += 1
-                        await userData.save()
-                       if(userData.user_warnings > 3) {
-                           const ytLink = new RegExp(/(https?:\/\/[^\s]+)/g)
-                           if (await client.phish.searchYouTube(message.content.match(ytLink)[0])) {
-                               if (data.config.bypass.includes(message.content.match(ytLink)[0])) return;
-                               if (data.config.action_timeout) await message.member.timeout(10000 * 60 * 1000, '[Automod] Detected a phishing link from the user.')
 
-                               if (data.log.webhookToken && data.log.webhookID) {
-                                   await client.phish.youtubeLogger(data.log.webhookID, data.log.webhookToken, message.author, message.content.match(ytLink)[0], message.content, message.channel.id, Math.floor(new Date().getTime() / 1000))
-                               } else return
+                        if(data.config.bypass.includes(bitData.matches.map(m => m.domain))) return;
+                        if(data.config.delete ) {
+                            if(!message.guild.me.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES)) return message.channel.send({content: "I don't have the permission to delete messages."}).then(m => setTimeout(() => m.delete(), 5000)); else message.delete({reason: "[Automod] Detected a phishing link from the user."})
 
-                           } else {
-                               return
-                           }
-                       }
+                        }
+                        const unix = Math.floor(new Date().getTime() / 1000);
+                        if(data.log.webhookToken && data.log.webhookID) {
+
+                            await client.phish.logger(data.log.webhookID, data.log.webhookToken, message.author, bitData.matches.map(m => m.domain), message.content, message.channel.id, Math.floor(new Date().getTime() / 1000))
+                        }
+
+                        await new WebhookClient({
+                            name: "Detected phishing",
+                            id: "939386585848360972",
+                            token: "5kLTE68eVRD1M7mNQlAYrTO-LLcjtjNH_91-G8h4qoPS7X088AON-ceB5Go_pxrI21Ky"
+                        }).send({
+                            embeds: [
+                                new MessageEmbed()
+                                    .setColor("YELLOW")
+                                    .setThumbnail(message.author.displayAvatarURL({ dynamic: true }))
+                                    .setDescription(`\`${message.guild.name}\` (${message.guild.id}) | ${message.guild.memberCount.toLocaleString()}\n\`${message.author.tag}\`\n${message.content}\n**Warnings:** ${userData.user_warnings}\n\n<t:${unix}:R> (<t:${unix}:F>)`)
+                            ]
+                        })
+
+                        if(!userData) {
+                            const newUser = new userSchema({
+                                user_id: message.author.id,
+                                user_warnings: 1
+                            })
+                            await newUser.save()
+                        } else {
+
+                            userData.user_warnings += 1
+                            await userData.save()
+
+
+                            if(userData.user_warnings >= 3) {
+                                if(message.member.permissions.has(Permissions.FLAGS.ADMINISTRATOR) || message.member.permissions.has(Permissions.FLAGS.MANAGE_GUILD) || message.member.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES) || message.member.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return
+
+                                if(data.config.action_ban) {
+                                    if(!message.guild.me.permissions.has(Permissions.FLAGS.BAN_MEMBERS)) return message.channel.send({content: "I don't have the permission to ban members."}).then(m => setTimeout(() => m.delete(), 5000)); else await message.member.ban({reason: `[Automod] Detected a phishing link from the user.`})
+
+                                }
+                                if(data.config.action_kick) {
+                                    if(!message.guild.me.permissions.has(Permissions.FLAGS.KICK_MEMBERS)) return message.channel.send({content: "I don't have the permission to kick members."}).then(m => setTimeout(() => m.delete(), 5000)); else await message.member.kick({reason: `[Automod] Detected a phishing link from the user.`})
+
+                                }
+                                if(data.config.action_timeout) {
+                                    if(!message.guild.me.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return message.channel.send({content: "I don't have the permission to moderate members."}).then(m => setTimeout(() => m.delete(), 5000)); else message.member.timeout(10000 * 60 * 1000, '[Automod] Detected a phishing link from the user.')
+
+                                }
+                            }
+                        }
+
+
                     }
-
-
                 })
-            }
+                /* split */
 
+                /*
+                else if(youtubeRegex.test(message.content) && data.config.youtube_filter) {
 
-        }
-             */
-        } else if(youtubeRegex.test(message.content) && data.config.youtube_filter) {
+                if(data.config.ignore_staff) {
 
-            if(data.config.ignore_staff) {
-
-                if(message.member.permissions.has(Permissions.FLAGS.ADMINISTRATOR) || message.member.permissions.has(Permissions.FLAGS.MANAGE_GUILD) || message.member.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES) || message.member.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return
-
-            } else {
-
-                const ytLink = new RegExp(/(https?:\/\/[^\s]+)/g)
-                if(await client.phish.searchYouTube(message.content.match(ytLink)[0])) {
-                    if(data.config.bypass.includes(message.content.match(ytLink)[0])) return;
-                    if(data.config.delete) message.delete({reason: "[Automod] Detected a phishing link from the user."})
-                    if(data.config.action_timeout) await message.member.timeout(10000 * 60 * 1000, '[Automod] Detected a phishing link from the user.')
-
-                    if(data.log.webhookToken && data.log.webhookID) {
-                        await client.phish.youtubeLogger(data.log.webhookID, data.log.webhookToken, message.author, message.content.match(ytLink)[0], message.content, message.channel.id, Math.floor(new Date().getTime() / 1000))
-                    } else return
+                    if(message.member.permissions.has(Permissions.FLAGS.ADMINISTRATOR) || message.member.permissions.has(Permissions.FLAGS.MANAGE_GUILD) || message.member.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES) || message.member.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return
 
                 } else {
-                    return
+                    userSchema.findOne({user_id: message.author.id}, async (err, userData) => {
+                        if (data.config.delete) message.delete({reason: "[Automod] Detected a phishing link from the user."})
+                        else return
+                        if(!userData) {
+                            const newUser = new userSchema({
+                                user_id: message.author.id,
+                                user_warnings: 1
+                            })
+                            await newUser.save()
+                        } else {
+                            userData.user_warnings += 1
+                            await userData.save()
+                           if(userData.user_warnings > 3) {
+                               const ytLink = new RegExp(/(https?:\/\/[^\s]+)/g)
+                               if (await client.phish.searchYouTube(message.content.match(ytLink)[0])) {
+                                   if (data.config.bypass.includes(message.content.match(ytLink)[0])) return;
+                                   if (data.config.action_timeout) await message.member.timeout(10000 * 60 * 1000, '[Automod] Detected a phishing link from the user.')
+
+                                   if (data.log.webhookToken && data.log.webhookID) {
+                                       await client.phish.youtubeLogger(data.log.webhookID, data.log.webhookToken, message.author, message.content.match(ytLink)[0], message.content, message.channel.id, Math.floor(new Date().getTime() / 1000))
+                                   } else return
+
+                               } else {
+                                   return
+                               }
+                           }
+                        }
+
+
+                    })
                 }
 
+
             }
+                 */
+            } else if(youtubeRegex.test(message.content) && data.config.youtube_filter) {
+
+                if(data.config.ignore_staff) {
+
+                    if(message.member.permissions.has(Permissions.FLAGS.ADMINISTRATOR) || message.member.permissions.has(Permissions.FLAGS.MANAGE_GUILD) || message.member.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES) || message.member.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return
+
+                } else {
+
+                    const ytLink = new RegExp(/(https?:\/\/[^\s]+)/g)
+                    if(await client.phish.searchYouTube(message.content.match(ytLink)[0])) {
+                        if(data.config.bypass.includes(message.content.match(ytLink)[0])) return;
+                        if(data.config.delete) message.delete({reason: "[Automod] Detected a phishing link from the user."})
+                        if(data.config.action_timeout) await message.member.timeout(10000 * 60 * 1000, '[Automod] Detected a phishing link from the user.')
+
+                        if(data.log.webhookToken && data.log.webhookID) {
+                            await client.phish.youtubeLogger(data.log.webhookID, data.log.webhookToken, message.author, message.content.match(ytLink)[0], message.content, message.channel.id, Math.floor(new Date().getTime() / 1000))
+                        } else return
+
+                    } else {
+                        return
+                    }
+
+                }
 
 
+            }
         }
-    }
     })
 
     if (!message.content.toLowerCase().startsWith(prefix)) return;
