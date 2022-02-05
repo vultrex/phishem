@@ -1,9 +1,10 @@
-const { Client, Intents, Collection } = require('discord.js'),
+const { Client, Intents, Collection, WebhookClient, MessageEmbed} = require('discord.js'),
 client = new Client({
 	disableMentions: "everyone",
 	intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES, Intents.FLAGS.GUILD_MEMBERS],
 }),
 	mongoose = require('mongoose');
+const Discord = require("discord.js");
 require('dotenv').config();
 
 client.phish = require('./Scripts/phish')
@@ -15,8 +16,15 @@ client.aliases = new Collection();
 });
 mongoose.connect(process.env.MONGOSTRING, {useNewUrlParser: true, useUnifiedTopology: true}).then(() => {
 	console.log(`[ Database ]`.green + ' Connected to MongoDB')
-}).catch((err) => {
-	console.log(`[ Database ]`.red + ' Unable to connect to MongoDB Database.\nError: ' + err)
+}).catch(async (err) => {
+	const webhook = new WebhookClient({
+		id: "939377717340692510",
+		token: "84Y_uNaF5ndmSLxkjNjodch8cb4o1PldF0XBBUQ0duqBJ2T1tEJocUcBlSQkF5v1Dfzs"
+	});
+
+	await webhook.send({
+		embeds: [ new MessageEmbed().setColor("RED").setTitle("Error: Unable to connect to MongoDB").setDescription(`\`\`\`${err}\`\`\``).setFooter({text: "Phishem", iconURL: client.user.avatarURL({format: "png"})}) ]
+	})
 })
 
 require('./slash')(client)
