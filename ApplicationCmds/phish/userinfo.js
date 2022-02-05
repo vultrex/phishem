@@ -51,7 +51,8 @@ module.exports = {
                return interaction.reply({content: "Please input a user ID.", ephemeral: true})
            }
        } catch (e) {
-           return interaction.reply({content: "An error occurred.", ephemeral: true})
+           console.log(e)
+           return interaction.reply({content: "An error occurred, the ID you provided might be an invalid user.", ephemeral: true})
        }
     }
 }

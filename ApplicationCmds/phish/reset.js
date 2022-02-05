@@ -62,9 +62,9 @@ module.exports = {
                     userSchema.findOne({user_id: id}, async (err, data) => {
                         if(!data) return interaction.reply({content: "This user has no infractions.", ephemeral: true})
                         else {
-                            data.user_warnings = 0;
-                            data.save().then(() => {
-                                interaction.reply({content: "Infractions have been reset.", ephemeral: true})
+                            userSchema.findOneAndDelete({user_id: id}, (err, data) => {
+                                if(err) return interaction.reply("Looks like an an error occurred, try again later.", {ephemeral: true})
+                                else return interaction.reply("User has been reset.", {ephemeral: true})
                             })
                         }
                     })
