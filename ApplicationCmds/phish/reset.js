@@ -64,7 +64,7 @@ module.exports = {
                         else {
                             data.user_warnings = 0;
                             data.save().then(() => {
-                                interaction.reply({content: "Infractions reset.", ephemeral: true})
+                                interaction.reply({content: "Infractions have been reset.", ephemeral: true})
                             })
                         }
                     })

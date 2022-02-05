@@ -194,6 +194,7 @@ module.exports = {
 
             case "ignore":
                 const value1 = interaction.options._hoistedOptions
+                if(!value1) return interaction.reply({content: "<:3595failed:926715200172867624> You must specify a option!", ephemeral: true})
                 switch(value1[0].name) {
                     case "staff":
                         if (!interaction.options._hoistedOptions[0].value) {
