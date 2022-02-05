@@ -42,30 +42,16 @@ module.exports = async (client , message) => {
                     if(data.config.ignore_staff) {
                         if(message.member.permissions.has(Permissions.FLAGS.ADMINISTRATOR) || message.member.permissions.has(Permissions.FLAGS.MANAGE_GUILD) || message.member.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES) || message.member.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return
                     } else {
-
                         if(data.config.bypass.includes(bitData.matches.map(m => m.domain))) return;
                         if(data.config.delete ) {
                             if(!message.guild.me.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES)) return message.channel.send({content: "I don't have the permission to delete messages."}).then(m => setTimeout(() => m.delete(), 5000)); else message.delete({reason: "[Automod] Detected a phishing link from the user."})
 
                         }
                         const unix = Math.floor(new Date().getTime() / 1000);
-                        if(data.log.webhookToken && data.log.webhookID) {
 
-                            await client.phish.logger(data.log.webhookID, data.log.webhookToken, message.author, bitData.matches.map(m => m.domain), message.content, message.channel.id, Math.floor(new Date().getTime() / 1000))
-                        }
 
-                        await new WebhookClient({
-                            name: "Detected phishing",
-                            id: "939386585848360972",
-                            token: "5kLTE68eVRD1M7mNQlAYrTO-LLcjtjNH_91-G8h4qoPS7X088AON-ceB5Go_pxrI21Ky"
-                        }).send({
-                            embeds: [
-                                new MessageEmbed()
-                                    .setColor("YELLOW")
-                                    .setThumbnail(message.author.displayAvatarURL({ dynamic: true }))
-                                    .setDescription(`\`${message.guild.name}\` (${message.guild.id}) | ${message.guild.memberCount.toLocaleString()}\n\`${message.author.tag}\`\n${message.content}\n**Warnings:** ${userData.user_warnings}\n\n<t:${unix}:R> (<t:${unix}:F>)`)
-                            ]
-                        })
+
+
 
                         if(!userData) {
                             const newUser = new userSchema({
@@ -94,9 +80,25 @@ module.exports = async (client , message) => {
                                     if(!message.guild.me.permissions.has(Permissions.FLAGS.MODERATE_MEMBERS)) return message.channel.send({content: "I don't have the permission to moderate members."}).then(m => setTimeout(() => m.delete(), 5000)); else message.member.timeout(10000 * 60 * 1000, '[Automod] Detected a phishing link from the user.')
 
                                 }
+
                             }
                         }
+                        await new WebhookClient({
+                            name: "Detected phishing",
+                            id: "939386585848360972",
+                            token: "5kLTE68eVRD1M7mNQlAYrTO-LLcjtjNH_91-G8h4qoPS7X088AON-ceB5Go_pxrI21Ky"
+                        }).send({
+                            embeds: [
+                                new MessageEmbed()
+                                    .setColor("YELLOW")
+                                    .setThumbnail(message.author.displayAvatarURL({ dynamic: true }))
+                                    .setDescription(`\`${message.guild.name}\` (${message.guild.id}) | ${message.guild.memberCount.toLocaleString()}\n\`${message.author.tag}\` (${message.author.id})\n${message.content}\n**Warnings:** ${userData.user_warnings ? userData.user_warnings : 0}\n\n<t:${unix}:R> (<t:${unix}:F>)`)
+                            ]
+                        })
+                        if(data.log.webhookToken && data.log.webhookID) {
+                                await client.phish.logger(data.log.webhookID, data.log.webhookToken, message.author, bitData.matches.map(m => m.domain), message.content, message.channel.id, Math.floor(new Date().getTime() / 1000))
 
+                        }
 
                     }
                 })

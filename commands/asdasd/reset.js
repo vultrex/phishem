@@ -5,7 +5,6 @@ module.exports = {
     run: async(client, msg, args) => {
         if (!process.env.developers.includes(msg.author.id)) return;
         const id = args.join(" ");
-        console.log(id)
         if(isNaN(id)) return msg.channel.send("Please enter a valid user id");
         userSchema.findOne({user_id: id}, async (err, data) => {
             if(!data) return msg.reply({content: "This user has no infractions."})
