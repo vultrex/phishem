@@ -65,6 +65,18 @@ module.exports = {
             ]
         },
         {
+            name: "ignore",
+            description: "Set users/roles to be ignored",
+            type: 1,
+            options: [
+                {
+                    name: "staff",
+                    description: "Make it so that staff members will be ignored",
+                    type: 5
+                },
+            ]
+        },
+        {
             name: "set",
             description: "Set configuration for your server",
             type: 1,
@@ -73,12 +85,6 @@ module.exports = {
                     name: "delete",
                     description: "If the detected phishing links should be deleted.",
                     type: 5,
-                },
-                {
-                  name: "staff-bypass",
-                    description: "If staff members should be able to bypass the filters.",
-                    type: 5,
-
                 },
                 {
                     name: "youtube-filter",
@@ -185,6 +191,46 @@ module.exports = {
                 }
 
                 break
+
+            case "ignore":
+                const value1 = interaction.options._hoistedOptions
+                switch(value1[0].name) {
+                    case "staff":
+                        if (!interaction.options._hoistedOptions[0].value) {
+                            if(!data.config.ignore_staff) return interaction.reply({content: "<:3595failed:926715200172867624> This setting is already disabled.", ephemeral: true})
+                            if (data) {
+                                if (data.config.ignore_staff) {
+                                    data.config.ignore_staff = false
+                                    await data.save()
+                                    return interaction.reply({
+                                        content: "<:9294passed:926715199950561341> The staff bypass filters have been turned off.",
+                                        ephemeral: true
+                                    })
+
+                                }
+                            }
+
+
+                        } else {
+
+                            if (data.config.ignore_staff) return interaction.reply({
+                                content: "<:3595failed:926715200172867624> This option is already enabled.",
+                                ephemeral: true
+                            })
+                            if (!data.config.ignore_staff) {
+                                data.config.ignore_staff = true
+                                await data.save()
+                                return interaction.reply({
+                                    content: "<:9294passed:926715199950561341> Successfully configured, I will now ignore staff members who have `MANAGE_GUILD`, `MANAGE_MESSAGES`, and `MODERATE_MEMBERS`",
+                                    ephemeral: true
+                                })
+                            }
+
+
+                        }
+                        break;
+                }
+                break;
             case "set":
                 if(!interaction.options._hoistedOptions[0]) return interaction.reply({content: "<:3595failed:926715200172867624> You must specify a option!", ephemeral: true})
                 if(interaction.options._hoistedOptions.length > 1) return interaction.reply({content: "<:3595failed:926715200172867624> You can only specify one option!", ephemeral: true})
@@ -225,44 +271,7 @@ module.exports = {
 
 
                                 break
-                            case "staff-bypass":
-                                if (!interaction.guild.me.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES)) return interaction.reply({
-                                    content: "<:3595failed:926715200172867624> I don't have the `Manage Messages` permission!",
-                                    ephemeral: true
-                                })
-                                if (!interaction.options._hoistedOptions[0].value) {
-                                    if(!data.config.ignore_staff) return interaction.reply({content: "<:3595failed:926715200172867624> This setting is already disabled.", ephemeral: true})
-                                    if (data) {
-                                        if (data.config.ignore_staff) {
-                                            data.config.ignore_staff = false
-                                            await data.save()
-                                            return interaction.reply({
-                                                content: "<:9294passed:926715199950561341> The staff bypass filters have been turned off.",
-                                                ephemeral: true
-                                            })
 
-                                        }
-                                    }
-
-
-                                } else {
-
-                                    if (data.config.ignore_staff) return interaction.reply({
-                                        content: "<:3595failed:926715200172867624> This option is already enabled.",
-                                        ephemeral: true
-                                    })
-                                    if (!data.config.ignore_staff) {
-                                        data.config.ignore_staff = true
-                                        await data.save()
-                                        return interaction.reply({
-                                            content: "<:9294passed:926715199950561341> Successfully configured, I will now ignore staff members who have `MANAGE_GUILD`, `MANAGE_MESSAGES`, and `MODERATE_MEMBERS`",
-                                            ephemeral: true
-                                        })
-                                    }
-
-
-                                }
-                                break
                             case "youtube-filter":
 
                                 if (!interaction.guild.me.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES)) return interaction.reply({
