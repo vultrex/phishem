@@ -18,9 +18,8 @@ mongoose.connect(process.env.MONGOSTRING, {useNewUrlParser: true, useUnifiedTopo
 	console.log(`[ Database ]`.green + ' Connected to MongoDB')
 }).catch(async (err) => {
 	const webhook = new WebhookClient({
-		name: "MongoDB Error",
-		id: "939386585848360972",
-		token: "5kLTE68eVRD1M7mNQlAYrTO-LLcjtjNH_91-G8h4qoPS7X088AON-ceB5Go_pxrI21Ky"
+		id: "941217050871877704",
+		token: "Wg2_6F6jjnESXM4HcPwqtCAbZ7dbnxkDt4gI8-RxXGESp0gjpdPVkh9ZWOkhRW8HCM-Z"
 	});
 
 	await webhook.send({
