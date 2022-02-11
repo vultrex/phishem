@@ -1,7 +1,7 @@
 const {WebhookClient, MessageEmbed} = require("discord.js");
 module.exports = {
     name: "report",
-    description: "Report a malicious domain/link [STILL IN DEVELOPMENT]",
+    description: "Report a malicious domain/link",
     options: [],
     category: "phish",
     timeout: 600000,
