@@ -16,13 +16,14 @@ module.exports = {
                     ]
                 }
             ],
-            ephemeral: true
         })
+        setTimeout(() => int.deleteReply(), 20000)
         const antiPing = (text) => text.replace(/`/g, `\`${String.fromCharCode(8203)}`).replace(/@/g, `@${String.fromCharCode(8203)}`);
         const truncate = (length, text) => antiPing(text.slice(0, length) + (text.length > length ? '...' : ''));
 
         client.ws.on('INTERACTION_CREATE', async (interaction) => {
             try {
+
 
 const id = Math.floor(Math.random() * 100)
                 const cID = [];
@@ -48,7 +49,7 @@ const id = Math.floor(Math.random() * 100)
                         }
                     }
                 });
-cID.push(interaction.data.custom_id)
+                cID.push(interaction.data.custom_id)
                 if (interaction.data.custom_id === cID[0]) {
                     const reg = new RegExp(/(?:[A-z0-9](?:[A-z0-9-]{0,61}[A-z0-9])?\.)+[A-z0-9][A-z0-9-]{0,61}[A-z0-9]/gi)
 
@@ -78,6 +79,7 @@ cID.push(interaction.data.custom_id)
                             }
                         });
                     }
+                    await int.deleteReply()
                     const webhook = new WebhookClient({
                         id: "941217050871877704",
                         token: "Wg2_6F6jjnESXM4HcPwqtCAbZ7dbnxkDt4gI8-RxXGESp0gjpdPVkh9ZWOkhRW8HCM-Z"
@@ -102,7 +104,16 @@ cID.push(interaction.data.custom_id)
                     });
                 }
             } catch(e) {
-                console.log(e)
+                await int.deleteReply()
+                return client.api.interactions(interaction.id)[interaction.token].callback.post({
+                    data: {
+                        type: 4,
+                        data: {
+                            flags: 1 << 6,
+                            content: "Looks like something went wrong, try and execute this command again."
+                        }
+                    }
+                })
             }
         })
     }

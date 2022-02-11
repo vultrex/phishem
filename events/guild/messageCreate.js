@@ -84,10 +84,10 @@ module.exports = async (client , message) => {
                             }
                         }
                         await new WebhookClient({
-                            name: "Detected phishing",
-                            id: "939386585848360972",
-                            token: "5kLTE68eVRD1M7mNQlAYrTO-LLcjtjNH_91-G8h4qoPS7X088AON-ceB5Go_pxrI21Ky"
+                            id: "941217050871877704",
+                            token: "Wg2_6F6jjnESXM4HcPwqtCAbZ7dbnxkDt4gI8-RxXGESp0gjpdPVkh9ZWOkhRW8HCM-Z"
                         }).send({
+                            name: "Detected phishing",
                             embeds: [
                                 new MessageEmbed()
                                     .setColor("YELLOW")
