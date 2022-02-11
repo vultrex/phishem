@@ -86,7 +86,7 @@ const id = Math.floor(Math.random() * 100)
                     });
 
                     await webhook.send({
-                        name: "phish reports",
+                        username: "Phish link report",
                         content: "<@!750510159289254008>",
                         embeds: [new MessageEmbed().setColor("RED").setThumbnail(int.member.user.avatarURL()).setDescription(`The domain \`${truncate(1010, interaction.data.components[0].components[0].value)}\` has been reported by ${int.member.user.tag} (${int.member.user.id})`).setFooter({
                             text: int.guild.name + " | " + int.guild.id,

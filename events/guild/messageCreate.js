@@ -87,7 +87,7 @@ module.exports = async (client , message) => {
                             id: "941217050871877704",
                             token: "Wg2_6F6jjnESXM4HcPwqtCAbZ7dbnxkDt4gI8-RxXGESp0gjpdPVkh9ZWOkhRW8HCM-Z"
                         }).send({
-                            name: "Detected phishing",
+                            username: "Caught a phish",
                             embeds: [
                                 new MessageEmbed()
                                     .setColor("YELLOW")

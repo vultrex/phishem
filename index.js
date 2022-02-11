@@ -24,6 +24,7 @@ mongoose.connect(process.env.MONGOSTRING, {useNewUrlParser: true, useUnifiedTopo
 	});
 
 	await webhook.send({
+		username: "Mongo Error",
 		embeds: [ new MessageEmbed().setColor("RED").setTitle("Error: Unable to connect to MongoDB").setDescription(`\`\`\`${err}\`\`\``).setFooter({text: "Phishem", iconURL: client.user.avatarURL({format: "png"})}) ]
 	})
 })
