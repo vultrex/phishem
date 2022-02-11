@@ -17,6 +17,7 @@ client.aliases = new Collection();
 mongoose.connect(process.env.MONGOSTRING, {useNewUrlParser: true, useUnifiedTopology: true}).then(() => {
 	console.log(`[ Database ]`.green + ' Connected to MongoDB')
 }).catch(async (err) => {
+	process.exit();
 	const webhook = new WebhookClient({
 		id: "941217050871877704",
 		token: "Wg2_6F6jjnESXM4HcPwqtCAbZ7dbnxkDt4gI8-RxXGESp0gjpdPVkh9ZWOkhRW8HCM-Z"
