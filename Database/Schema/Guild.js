@@ -8,6 +8,7 @@ module.exports = mongoose.model("Guild", new mongoose.Schema({
     config: {
         delete: { type: Boolean, default: true }, //Delete the guild after the bot is restarted
         youtube_filter: { type: Boolean, default: false }, //Filter youtube links
+        memberScanning: {type: Boolean, default: false}, //new members if they have a blacklisted phrase
         ignore_staff: { type: Boolean, default: false }, //Ignore staff members
         ignore_roles: [{type: String, default: ""}], //Ignore roles
         bypass: [{type: String, default: ""}], //Bypass the filter

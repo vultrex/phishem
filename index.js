@@ -9,6 +9,7 @@ require('dotenv').config();
 
 client.phish = require('./Scripts/phish')
 client.commands = new Collection();
+client.blacklist = require('./Scripts/UserBlacklistNames.json')
 client.slash = new Collection();
 client.aliases = new Collection();
 ["handlers", "events", "slash"].forEach(handler => {
