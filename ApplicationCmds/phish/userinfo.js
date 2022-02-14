@@ -1,4 +1,4 @@
-const {MessageEmbed} = require('discord.js');
+const {MessageEmbed, WebhookClient, Message} = require('discord.js');
 const fetch = require('node-fetch');
 const moment = require("moment");
 module.exports = {
@@ -51,8 +51,17 @@ module.exports = {
                return interaction.reply({content: "Please input a user ID.", ephemeral: true})
            }
        } catch (e) {
-           console.log(e)
-           return interaction.reply({content: "An error occurred, the ID you provided might be an invalid user.", ephemeral: true})
+           const webhook = new WebhookClient({
+               id: "941217050871877704",
+               token: "Wg2_6F6jjnESXM4HcPwqtCAbZ7dbnxkDt4gI8-RxXGESp0gjpdPVkh9ZWOkhRW8HCM-Z"
+           });
+
+          await webhook.send({
+               embeds: [
+                   new MessageEmbed().setTitle("An error occurred:").setDescription(`\`\`\`${e}\`\`\``).setColor('RED')
+               ]
+           })
+           return await interaction.reply({content: "An error occurred, the ID you provided might be an invalid user.", ephemeral: true})
        }
     }
 }

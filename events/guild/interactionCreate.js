@@ -1,5 +1,5 @@
 const Timeout = new Set()
-const { MessageEmbed, Permissions} = require('discord.js');
+const { MessageEmbed, Permissions, WebhookClient} = require('discord.js');
 const humanizeDuration = require("humanize-duration");
 const Schema = require("../../Database/Schema/Guild");
 
@@ -58,7 +58,17 @@ module.exports = async(client, interaction) => {
 			}, command.timeout);
 		} catch (error) {
 			console.log(`[ Error ] `.red + error)
-			await interaction.reply({content: ':x: There was an error while executing this command!', ephemeral: true});
+			const webhook = new WebhookClient({
+				id: "941217050871877704",
+				token: "Wg2_6F6jjnESXM4HcPwqtCAbZ7dbnxkDt4gI8-RxXGESp0gjpdPVkh9ZWOkhRW8HCM-Z"
+			});
+
+			await webhook.send({
+				embeds: [
+					new MessageEmbed().setTitle("An error occurred:").setDescription(`\`\`\`${error}\`\`\``).setColor('RED')
+				]
+			})
+			return await interaction.reply({content: ':x: There was an error while executing this command!', ephemeral: true});
 		}
 
 	}
