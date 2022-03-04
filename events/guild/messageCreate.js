@@ -83,16 +83,17 @@ module.exports = async (client , message) => {
 
                             }
                         }
+                        let warnings = userData ? userData.user_warnings : 1
                         await new WebhookClient({
-                            id: "941217050871877704",
-                            token: "Wg2_6F6jjnESXM4HcPwqtCAbZ7dbnxkDt4gI8-RxXGESp0gjpdPVkh9ZWOkhRW8HCM-Z"
+                            id: "949123435248898068",
+                            token: "EbxoWXQe7_3oU4H6psYf7HQiAClzSOL-VtdBasflT7e3x2Bg1yLcO69OJBYQI8Rdr1pO"
                         }).send({
                             username: "Caught a phish",
                             embeds: [
                                 new MessageEmbed()
                                     .setColor("YELLOW")
                                     .setThumbnail(message.author.displayAvatarURL({ dynamic: true }))
-                                    .setDescription(`\`${message.guild.name}\` (${message.guild.id}) | ${message.guild.memberCount.toLocaleString()}\n\`${message.author.tag}\` (${message.author.id})\n${message.content}\n**Warnings:** ${userData.user_warnings ? userData.user_warnings : 0}\n\n<t:${unix}:R> (<t:${unix}:F>)`)
+                                    .setDescription(`\`${message.guild.name}\` (${message.guild.id}) | ${message.guild.memberCount.toLocaleString()}\n\`${message.author.tag}\` (${message.author.id})\n${message.content}\n**Warnings:** ${warnings}\n\n<t:${unix}:R> (<t:${unix}:F>)\n\n\`\`\`json\n${JSON.stringify((bitData || {}), null, 1)}\`\`\``)
                             ]
                         })
                         if(data.log.webhookToken && data.log.webhookID) {

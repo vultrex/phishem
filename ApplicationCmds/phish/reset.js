@@ -64,7 +64,7 @@ module.exports = {
                         else {
                             userSchema.findOneAndDelete({user_id: id}, (err, data) => {
                                 if(err) return interaction.reply("Looks like an an error occurred, try again later.", {ephemeral: true})
-                                else return interaction.reply("User has been reset.", {ephemeral: true})
+                                else return interaction.reply("The user's infractions have been reset.", {ephemeral: true})
                             })
                         }
                     })

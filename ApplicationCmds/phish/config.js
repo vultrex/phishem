@@ -412,6 +412,10 @@ module.exports = {
                                     content: "<:3595failed:926715200172867624> The channel must be a text channel!",
                                     ephemeral: true
                                 })
+                                if(!channel.permissionsFor(client.user).has(Permissions.FLAGS.MANAGE_WEBHOOKS)) return interaction.reply({
+                                    content: "<:3595failed:926715200172867624> I don't have the `Manage Webhooks` permission!",
+                                    ephemeral: true
+                                })
                                 const webhooks = await channel.fetchWebhooks();
                                 const web = webhooks.find(wh => wh.owner.id === client.user.id);
 
