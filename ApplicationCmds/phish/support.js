@@ -4,6 +4,6 @@ module.exports = {
     options: [],
     category: "phish",
     run: async(interaction, client) => {
-        interaction.reply({content: `https://discord.gg/vultrex`})
+        interaction.reply({content: `https://discord.gg/yG9N4JABP3`})
     }
     }
