@@ -19,7 +19,7 @@ const rest = new REST({version: "9"}).setToken(process.env.TOKEN);
 
 	try {
 		console.log(`[ Discord ]`.cyan + ' Refreshing application commands.'.yellow);
-		await rest.put(Routes.applicationCommands("926687914174341130"), {body: commands},);
+		await rest.put(Routes.applicationCommands(process.env.CLIENTID), {body: commands},);
 		console.log(`[ Discord ]`.cyan + ' Reloaded application commands.'.green);
 	} catch (error) {
 		console.error(error);
