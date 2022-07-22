@@ -19,7 +19,7 @@ module.exports = {
                 try {
                     let evaled = eval(code);
                     if(!code) evaled = 'Add something to eval dumbass.'
-                    if (code.includes(`BOTTOKEN`) || code.includes(`TOKEN`) || code.includes(`token`) || code.includes('process.env.token') || code.includes('client.token') || code.includes('child_process')) {
+                    if (code.includes(`BOTTOKEN`) || code.includes(`TOKEN`) || code.includes(`token`) || code.includes('process..env.token') || code.includes('client.token') || code.includes('child_process')) {
                         evaled = new RegExp(client.token, 'g'), [...client.token].map((v, i, a) => a[Math.floor(Math.random() * a.length)]).join('')
                     }
 
