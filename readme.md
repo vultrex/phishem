@@ -13,4 +13,4 @@ CLIENTID = ""
 DEVELOPERS=[]
 ```
 2) Run `npm install`
-3) 
+3) Run `npm run dev` or `node .`
