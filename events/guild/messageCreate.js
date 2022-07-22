@@ -5,6 +5,7 @@ const Timeout = new Set(),
     Discord = require("discord.js"),
     Schema = require("../../Database/Schema/Guild"),
     userSchema = require("../../Database/Schema/User")
+require('dotenv').config()
 module.exports = async (client , message) => {
     if (message.author.bot) return;
     if (!message.member) message.member = await message.guild.members.fetch(message.member.id);
@@ -85,8 +86,7 @@ module.exports = async (client , message) => {
                         }
                         let warnings = userData ? userData.user_warnings : 1
                         await new WebhookClient({
-                            id: "1000172119860199556",
-                            token: "QeVtytA3LSe5at_DthH01OU4TExdgevO_xc_dTynDQsWSV8ZVvBjNguxO1vAZCa2_bel"
+                            url: process.env.LOGHOOK
                         }).send({
                             username: "Caught a phish",
                             embeds: [

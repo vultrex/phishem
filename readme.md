@@ -7,10 +7,11 @@ Bot invite: [Invite](https://discord.com/oauth2/authorize?client_id=926687914174
 1) Create a file named `.env` in the root directory of the project. Inside the file fill out the following details:]
 ```
 TOKEN=""
-MONGOSTRING=""
+MONGOSTRING="" (MongoDB connection string)
 PREFIX="+"
-CLIENTID = ""
-DEVELOPERS=[]
+CLIENTID = "" (Bot client ID)
+DEVELOPERS=[] (Array of developers IDs)
+LOGHOOK="" (Log webhook url)
 ```
 2) Run `npm install`
 3) Run `npm run dev` or `node .`
