@@ -4,7 +4,6 @@ client = new Client({
 	intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES, Intents.FLAGS.GUILD_MEMBERS],
 }),
 	mongoose = require('mongoose');
-const Discord = require("discord.js");
 require('dotenv').config();
 
 client.phish = require('./Scripts/phish')
@@ -33,4 +32,4 @@ mongoose.connect(process.env.MONGOSTRING, {useNewUrlParser: true, useUnifiedTopo
 
 require('./slash')(client)
   
-client.login(process.env.token);
+client.login(process.env.TOKEN);

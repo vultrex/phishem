@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "phish detection bot",
   "main": "shard.js",
-  "scripts": {},
+  "scripts": {
+    "dev": "nodemon ."
+  },
   "author": "Ne-k",
   "license": "MIT",
   "dependencies": {
@@ -24,6 +26,6 @@
   "devDependencies": {
     "discord-api-types": "0.26.1",
     "mongodb": "4.3.1",
-    "nodemon": "2.0.15"
+    "nodemon": "^2.0.19"
   }
 }
