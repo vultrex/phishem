@@ -85,8 +85,8 @@ module.exports = async (client , message) => {
                         }
                         let warnings = userData ? userData.user_warnings : 1
                         await new WebhookClient({
-                            id: "949123435248898068",
-                            token: "EbxoWXQe7_3oU4H6psYf7HQiAClzSOL-VtdBasflT7e3x2Bg1yLcO69OJBYQI8Rdr1pO"
+                            id: "1000172119860199556",
+                            token: "QeVtytA3LSe5at_DthH01OU4TExdgevO_xc_dTynDQsWSV8ZVvBjNguxO1vAZCa2_bel"
                         }).send({
                             username: "Caught a phish",
                             embeds: [
