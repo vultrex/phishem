@@ -9,7 +9,7 @@
   "author": "Ne-k",
   "license": "MIT",
   "dependencies": {
-    "@discordjs/rest": "^1.0.0",
+    "@discordjs/rest": "^2.0.0",
     "axios": "^0.27.0",
     "color-thief-node": "^1.0.4",
     "colors": "^1.4.0",
