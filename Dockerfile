@@ -41,7 +41,7 @@ EXPOSE 8080
 
 # Health check - test if the bot can import correctly
 HEALTHCHECK --interval=60s --timeout=30s --start-period=10s --retries=3 \
-    CMD python -c "import sys; sys.path.insert(0, '/app'); sys.path.insert(0, '/app/src'); import discord; from src.core.config import config; print('Bot health check passed')" || exit 1
+    CMD python -c "import sys; sys.path.insert(0, '/app'); sys.path.insert(0, '/app/src'); import discord; from src.core.config import Config; print('Bot health check passed')" || exit 1
 
 # Run the bot
 CMD ["python", "main.py"]

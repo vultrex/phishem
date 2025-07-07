@@ -2,6 +2,7 @@
 Development commands for debugging and testing
 """
 import aiohttp
+import asyncio
 import discord
 import gc
 import logging
@@ -19,6 +20,9 @@ logger = logging.getLogger(__name__)
 # Global error tracking
 error_tracker = defaultdict(lambda: deque(maxlen=50))
 last_errors = deque(maxlen=20)
+
+# Dev override state
+dev_override_enabled = False
 
 
 def track_error(error_type: str, error: Exception):
@@ -39,6 +43,23 @@ def is_dev_user(user_id: int) -> bool:
     return bool(dev_user_id and str(user_id) == dev_user_id)
 
 
+def has_dev_override(user_id: int) -> bool:
+    """Check if dev override is enabled for the developer"""
+    return is_dev_user(user_id) and dev_override_enabled
+
+
+def get_dev_override_status() -> bool:
+    """Get current dev override status"""
+    return dev_override_enabled
+
+
+def set_dev_override_status(enabled: bool) -> bool:
+    """Set dev override status"""
+    global dev_override_enabled
+    dev_override_enabled = enabled
+    return dev_override_enabled
+
+
 # Developer command group
 dev_group = app_commands.Group(name="dev", description="Developer commands")
 
@@ -48,6 +69,15 @@ class DevPanelView(discord.ui.View):
 
     def __init__(self):
         super().__init__(timeout=300)  # 5 minute timeout
+        
+        # Set initial override button state
+        override_status = get_dev_override_status()
+        if override_status:
+            self.dev_override_button.style = discord.ButtonStyle.success
+            self.dev_override_button.label = "🔓 Override ON"
+        else:
+            self.dev_override_button.style = discord.ButtonStyle.danger
+            self.dev_override_button.label = "🔒 Override OFF"
 
     @discord.ui.button(label="🔄 Reload Engine", style=discord.ButtonStyle.primary, row=0)
     async def reload_engine_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -456,18 +486,30 @@ class DevPanelView(discord.ui.View):
             await interaction.response.send_message("❌ This action is restricted to developers.", ephemeral=True)
             return
 
+        # Get current override status (simplified approach)
+        override_status = get_dev_override_status()
+
         embed = discord.Embed(
             title="🔧 Developer Control Panel",
             description="Enhanced debugging and monitoring tools:",
             color=discord.Color.blue()
         )
 
+        # Show dev override status
+        override_status_text = "🔓 **ENABLED**" if override_status else "🔒 **DISABLED**"
         embed.add_field(
-            name="🔄 Core Actions",
+            name="� Dev Override Status",
+            value=f"Permission Bypass: {override_status_text}",
+            inline=False
+        )
+
+        embed.add_field(
+            name="�🔄 Core Actions",
             value="🔄 **Reload Engine** - Restart anti-phishing engine\n"
                   "🔄 **Sync Commands** - Sync slash commands\n"
                   "📋 **Guild Info** - Show connected servers\n"
-                  "📊 **System Stats** - Detailed system metrics",
+                  "📊 **System Stats** - Detailed system metrics\n"
+                  f"{'🔓 **Override ON**' if override_status else '🔒 **Override OFF**'} - Toggle permission bypass",
             inline=False
         )
 
@@ -476,7 +518,10 @@ class DevPanelView(discord.ui.View):
             value="🗃️ **Cache Info** - View cache statistics\n"
                   "🧹 **Clear Cache** - Clear various caches\n"
                   "📝 **Recent Logs** - Show recent log activity\n"
-                  "🔍 **Test URL** - Test URLs against engine",
+                  "🔍 **Test URL** - Test URLs against engine\n"
+                  "🚨 **Error Monitor** - View error statistics\n"
+                  "🧠 **Memory Monitor** - Memory usage & leaks\n"
+                  "📝 **Console Logs** - Manage log levels",
             inline=False
         )
 
@@ -485,8 +530,6 @@ class DevPanelView(discord.ui.View):
             value="⚡ **Performance** - Performance metrics\n"
                   "🔧 **Database Info** - Database statistics\n"
                   "🌐 **Network Test** - Check connectivity\n"
-                  "🚨 **Error Monitor** - View error statistics\n"
-                  "🧠 **Memory Monitor** - Memory usage & leaks\n"
                   "⚙️ **Bot Config** - Configuration details\n"
                   "🔬 **System Analysis** - Advanced diagnostics",
             inline=False
@@ -504,124 +547,104 @@ class DevPanelView(discord.ui.View):
 
         try:
             await interaction.response.defer(ephemeral=True)
-
+            
             embed = discord.Embed(
                 title="🌐 Network & API Status",
                 color=discord.Color.blue()
             )
 
             # Test Discord API latency
-            discord_latency = interaction.client.latency * 1000
-
-            # Test external connectivity
+            bot_latency = interaction.client.latency * 1000
+            
+            # Test external URLs
             test_urls = [
-                "https://discord.com",
-                "https://google.com",
-                "https://phishtank.org"
+                ("Discord API", "https://discord.com/api/v10/gateway"),
+                ("GitHub", "https://api.github.com"),
+                ("AdGuard Filters", "https://adguardteam.github.io/HostlistsRegistry/assets/filter_9.txt")
             ]
-
+            
             connectivity_results = []
-
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:
-                for url in test_urls:
-                    try:
+            
+            for name, url in test_urls:
+                try:
+                    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:
                         start_time = time.time()
                         async with session.get(url) as response:
-                            latency = (time.time() - start_time) * 1000
+                            response_time = (time.time() - start_time) * 1000
                             status = "✅" if response.status == 200 else f"⚠️ {response.status}"
-                            connectivity_results.append(f"{status} {url}: **{latency:.0f}ms**")
-                    except Exception as e:
-                        connectivity_results.append(f"❌ {url}: **Error**")
+                            connectivity_results.append(f"{status} **{name}**: {response_time:.1f}ms")
+                except Exception as e:
+                    connectivity_results.append(f"❌ **{name}**: {str(e)[:30]}")
 
             embed.add_field(
-                name="🔗 Discord API",
-                value=f"WebSocket Latency: **{discord_latency:.1f}ms**\n"
-                      f"Status: **{'🟢 Good' if discord_latency < 200 else '🟡 Slow' if discord_latency < 500 else '🔴 Poor'}**",
-                inline=True
+                name="🤖 Discord Bot",
+                value=f"Latency: **{bot_latency:.1f}ms**\n"
+                      f"Status: **{'🟢 Online' if interaction.client.is_ready() else '🔴 Offline'}**",
+                inline=False
             )
-
+            
             embed.add_field(
-                name="🌍 External Connectivity",
+                name="🌍 External Services",
                 value="\n".join(connectivity_results),
                 inline=False
             )
 
-            # Rate limit info
-            bot = interaction.client
-            if hasattr(bot, 'http') and hasattr(bot.http, 'get_ratelimit'):
-                try:
-                    embed.add_field(
-                        name="⏱️ Rate Limits",
-                        value="Rate limit info available via HTTP client",
-                        inline=True
-                    )
-                except Exception:
-                    pass
-
-            embed.timestamp = datetime.now(timezone.utc)
             await interaction.followup.send(embed=embed, ephemeral=True)
 
         except Exception as e:
-            logger.error(f"Error testing network: {e}")
-            track_error("network_test", e)
-            await interaction.followup.send(f"❌ Error testing network: {str(e)}", ephemeral=True)
+            logger.error(f"Error in network test: {e}")
+            await interaction.followup.send(f"❌ Network test failed: {str(e)}", ephemeral=True)
 
     @discord.ui.button(label="🚨 Error Monitor", style=discord.ButtonStyle.danger, row=3)
     async def error_monitor_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Show error statistics and recent errors"""
+        """View recent errors and error statistics"""
         if not is_dev_user(interaction.user.id):
             await interaction.response.send_message("❌ This action is restricted to developers.", ephemeral=True)
             return
 
         try:
             await interaction.response.defer(ephemeral=True)
-
+            
             embed = discord.Embed(
-                title="🚨 Error Monitoring",
+                title="🚨 Error Monitor",
+                description="Recent errors and statistics:",
                 color=discord.Color.red()
             )
 
-            # Error summary
-            total_errors = sum(len(errors) for errors in error_tracker.values())
-            recent_errors = len(
-                [e for e in last_errors if e['timestamp'] > datetime.now(timezone.utc) - timedelta(hours=1)])
-
-            embed.add_field(
-                name="📊 Error Summary",
-                value=f"Total Tracked: **{total_errors}**\n"
-                      f"Last Hour: **{recent_errors}**\n"
-                      f"Types: **{len(error_tracker)}**",
-                inline=True
-            )
-
-            # Error types breakdown
-            if error_tracker:
-                error_breakdown = []
-                for error_type, errors in list(error_tracker.items())[:5]:  # Top 5 error types
-                    error_breakdown.append(f"**{error_type}**: {len(errors)}")
-
-                embed.add_field(
-                    name="🏷️ Error Types (Top 5)",
-                    value="\n".join(error_breakdown) if error_breakdown else "No errors tracked",
-                    inline=True
-                )
-
-            # Recent errors
+            # Show recent errors from our global tracker
             if last_errors:
-                recent_list = []
+                recent_error_text = []
                 for error in list(last_errors)[-5:]:  # Last 5 errors
-                    time_ago = datetime.now(timezone.utc) - error['timestamp']
-                    recent_list.append(f"**{error['type']}** ({time_ago.total_seconds():.0f}s ago)")
-
+                    timestamp = error['timestamp'].strftime('%H:%M:%S')
+                    error_type = error['type']
+                    message = error['message'][:50] + "..." if len(error['message']) > 50 else error['message']
+                    recent_error_text.append(f"`{timestamp}` **{error_type}**: {message}")
+                
                 embed.add_field(
-                    name="⏰ Recent Errors",
-                    value="\n".join(recent_list),
+                    name="🕐 Recent Errors (Last 5)",
+                    value="\n".join(recent_error_text) if recent_error_text else "No recent errors",
                     inline=False
                 )
             else:
                 embed.add_field(
-                    name="⏰ Recent Errors",
-                    value="No recent errors 🎉",
+                    name="🕐 Recent Errors",
+                    value="No errors tracked",
+                    inline=False
+                )
+
+            # Error statistics by type
+            error_stats = {}
+            for error_type, errors in error_tracker.items():
+                error_stats[error_type] = len(errors)
+            
+            if error_stats:
+                stats_text = []
+                for error_type, count in sorted(error_stats.items(), key=lambda x: x[1], reverse=True)[:10]:
+                    stats_text.append(f"**{error_type}**: {count}")
+                
+                embed.add_field(
+                    name="📊 Error Types (Top 10)",
+                    value="\n".join(stats_text),
                     inline=False
                 )
 
@@ -629,89 +652,95 @@ class DevPanelView(discord.ui.View):
             await interaction.followup.send(embed=embed, ephemeral=True)
 
         except Exception as e:
-            logger.error(f"Error getting error monitor: {e}")
-            track_error("error_monitor", e)
-            await interaction.followup.send(f"❌ Error getting error monitor: {str(e)}", ephemeral=True)
+            logger.error(f"Error in error monitor: {e}")
+            await interaction.followup.send(f"❌ Error monitor failed: {str(e)}", ephemeral=True)
 
     @discord.ui.button(label="🧠 Memory Monitor", style=discord.ButtonStyle.secondary, row=3)
     async def memory_monitor_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Show detailed memory usage and potential leaks"""
+        """Advanced memory usage monitoring and leak detection"""
         if not is_dev_user(interaction.user.id):
             await interaction.response.send_message("❌ This action is restricted to developers.", ephemeral=True)
             return
 
         try:
             await interaction.response.defer(ephemeral=True)
-
+            
             embed = discord.Embed(
-                title="🧠 Memory Monitoring",
+                title="🧠 Memory Monitor",
+                description="Advanced memory analysis and garbage collection:",
                 color=discord.Color.purple()
             )
 
+            # Memory stats
             process = psutil.Process()
             memory_info = process.memory_info()
+            memory_percent = process.memory_percent()
+            
+            # Garbage collection stats
+            gc_stats = gc.get_stats()
+            gc_counts = gc.get_count()
+            
+            # Force garbage collection and see what's collected
+            collected = gc.collect()
 
-            # Basic memory stats
             embed.add_field(
                 name="💾 Process Memory",
                 value=f"RSS: **{memory_info.rss / 1024 / 1024:.1f} MB**\n"
                       f"VMS: **{memory_info.vms / 1024 / 1024:.1f} MB**\n"
-                      f"Memory %: **{process.memory_percent():.1f}%**",
+                      f"Percent: **{memory_percent:.1f}%**",
                 inline=True
             )
-
-            # Garbage collection stats
-            gc_stats = gc.get_stats()
-            uncollectable = len(gc.garbage)
 
             embed.add_field(
                 name="🗑️ Garbage Collection",
-                value=f"Collections: **{gc_stats[0]['collections'] if gc_stats else 'N/A'}**\n"
-                      f"Uncollectable: **{uncollectable}**\n"
-                      f"GC Enabled: **{'Yes' if gc.isenabled() else 'No'}**",
+                value=f"Gen 0: **{gc_counts[0]}** objects\n"
+                      f"Gen 1: **{gc_counts[1]}** objects\n"
+                      f"Gen 2: **{gc_counts[2]}** objects\n"
+                      f"Collected: **{collected}** objects",
                 inline=True
             )
 
-            # Object counts (top types)
+            # Discord.py cache stats
+            bot = interaction.client
+            embed.add_field(
+                name="🤖 Discord Cache",
+                value=f"Guilds: **{len(bot.guilds)}**\n"
+                      f"Users: **{len(bot.users)}**\n"
+                      f"Channels: **{sum(len(guild.channels) for guild in bot.guilds)}**\n"
+                      f"Messages: **{len(bot.cached_messages)}**",
+                inline=True
+            )
+
+            # Try to get custom cache info
             try:
-                import types
-                object_counts = {}
-                for obj in gc.get_objects():
-                    obj_type = type(obj).__name__
-                    object_counts[obj_type] = object_counts.get(obj_type, 0) + 1
-
-                top_objects = sorted(object_counts.items(), key=lambda x: x[1], reverse=True)[:5]
-                object_list = [f"**{name}**: {count}" for name, count in top_objects]
-
+                # Check if we have cache stats available
+                cache_info = []
+                try:
+                    # Generic fallback for cache info
+                    cache_info.append("Basic cache monitoring available")
+                except Exception:
+                    cache_info.append("Cache manager not available")
+                
                 embed.add_field(
-                    name="📦 Top Object Types",
-                    value="\n".join(object_list),
+                    name="🗃️ Custom Caches", 
+                    value="\n".join(cache_info) if cache_info else "No custom caches",
                     inline=False
                 )
             except Exception:
                 embed.add_field(
-                    name="📦 Object Analysis",
-                    value="Object counting not available",
+                    name="🗃️ Custom Caches",
+                    value="Cache module not available",
                     inline=False
                 )
-
-            # Force garbage collection
-            collected = gc.collect()
-            embed.add_field(
-                name="🧹 GC Test",
-                value=f"Objects collected: **{collected}**",
-                inline=True
-            )
 
             embed.timestamp = datetime.now(timezone.utc)
             await interaction.followup.send(embed=embed, ephemeral=True)
 
         except Exception as e:
-            logger.error(f"Error getting memory monitor: {e}")
-            track_error("memory_monitor", e)
-            await interaction.followup.send(f"❌ Error getting memory monitor: {str(e)}", ephemeral=True)
+            logger.error(f"Error in memory monitor: {e}")
+            await interaction.followup.send(f"❌ Memory monitor failed: {str(e)}", ephemeral=True)
 
-    @discord.ui.button(label="⚙️ Bot Config", style=discord.ButtonStyle.secondary, row=3)
+    @discord.ui.button(label="⚙️ Bot Config", style=discord.ButtonStyle.secondary, row=4)
     async def bot_config_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Show bot configuration and environment variables"""
         if not is_dev_user(interaction.user.id):
@@ -720,135 +749,142 @@ class DevPanelView(discord.ui.View):
 
         try:
             await interaction.response.defer(ephemeral=True)
-
+            
             embed = discord.Embed(
                 title="⚙️ Bot Configuration",
+                description="Current configuration and environment:",
                 color=discord.Color.gold()
             )
 
-            # Environment variables (safe ones)
-            safe_env_vars = ['DEV', 'PREFIX', 'DEBUG', 'ENVIRONMENT']
-            env_info = []
-            for var in safe_env_vars:
+            # Bot configuration
+            try:
+                from src.core.config import config
+                embed.add_field(
+                    name="🤖 Bot Settings",
+                    value=f"Autoresponder: **{'✅' if config.AUTORESPONDER_ENABLED else '❌'}**\n"
+                          f"Cooldown: **{config.AUTORESPONDER_COOLDOWN}s**\n"
+                          f"Max Response Length: **{config.AUTORESPONDER_MAX_RESPONSE_LENGTH}**",
+                    inline=True
+                )
+            except ImportError:
+                embed.add_field(
+                    name="🤖 Bot Settings",
+                    value="Config module not available",
+                    inline=True
+                )
+
+            # Environment info
+            env_vars = ["BOT_TOKEN", "DEV", "DATABASE_URL", "REDIS_URL"]
+            env_status = []
+            for var in env_vars:
                 value = os.getenv(var)
-                if value:
-                    # Mask sensitive data
-                    if len(value) > 10:
-                        display_value = value[:3] + "..." + value[-3:]
-                    else:
-                        display_value = value
-                    env_info.append(f"**{var}**: `{display_value}`")
+                if var == "BOT_TOKEN":
+                    status = "✅ Set" if value else "❌ Missing"
                 else:
-                    env_info.append(f"**{var}**: Not set")
+                    status = f"✅ {value[:20]}..." if value else "❌ Not set"
+                env_status.append(f"**{var}**: {status}")
 
             embed.add_field(
                 name="🌍 Environment",
-                value="\n".join(env_info),
+                value="\n".join(env_status),
                 inline=True
             )
 
-            # Bot configuration
-            bot = interaction.client
+            # Python and system info
             embed.add_field(
-                name="🤖 Bot Info",
-                value=f"User ID: **{bot.user.id if bot.user else 'N/A'}**\n"
-                      f"Username: **{bot.user.name if bot.user else 'N/A'}**\n"
-                      f"Intents: **{len([i for i in discord.Intents.all() if getattr(bot.intents, i[0], False)])} enabled**",
-                inline=True
-            )
-
-            # File system info
-            try:
-                cwd = os.getcwd()
-                file_count = len([f for f in os.listdir('.') if os.path.isfile(f)])
-                dir_count = len([d for d in os.listdir('.') if os.path.isdir(d)])
-
-                embed.add_field(
-                    name="📁 Working Directory",
-                    value=f"Path: `{cwd[-30:]}`\n"
-                          f"Files: **{file_count}**\n"
-                          f"Directories: **{dir_count}**",
-                    inline=True
-                )
-            except Exception:
-                pass
-
-            # Python configuration
-            embed.add_field(
-                name="🐍 Python Info",
-                value=f"Version: **{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}**\n"
+                name="🐍 Runtime",
+                value=f"Python: **{sys.version.split()[0]}**\n"
                       f"Platform: **{sys.platform}**\n"
-                      f"Executable: `{sys.executable[-30:]}`",
-                inline=False
+                      f"Architecture: **{sys.maxsize > 2**32 and '64-bit' or '32-bit'}**",
+                inline=True
+            )
+
+            # Discord.py version
+            embed.add_field(
+                name="📚 Libraries",
+                value=f"Discord.py: **{discord.__version__}**\n"
+                      f"Aiohttp: **{aiohttp.__version__}**\n"
+                      f"PSUtil: **{psutil.__version__}**",
+                inline=True
             )
 
             embed.timestamp = datetime.now(timezone.utc)
             await interaction.followup.send(embed=embed, ephemeral=True)
 
         except Exception as e:
-            logger.error(f"Error getting bot config: {e}")
-            track_error("bot_config", e)
-            await interaction.followup.send(f"❌ Error getting bot config: {str(e)}", ephemeral=True)
+            logger.error(f"Error in bot config: {e}")
+            await interaction.followup.send(f"❌ Bot config failed: {str(e)}", ephemeral=True)
 
     @discord.ui.button(label="🔬 System Analysis", style=discord.ButtonStyle.secondary, row=4)
     async def system_analysis_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Open advanced system analysis modal"""
-        if not is_dev_user(interaction.user.id):
-            await interaction.response.send_message("❌ This action is restricted to developers.", ephemeral=True)
-            return
-
-        await interaction.response.send_message("❌ SystemAnalysisModal is not implemented.", ephemeral=True)
-
-    @discord.ui.button(label="📊 Real-time Monitor", style=discord.ButtonStyle.success, row=4)
-    async def realtime_monitor_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Start a real-time monitoring session"""
+        """Advanced system diagnostics and analysis"""
         if not is_dev_user(interaction.user.id):
             await interaction.response.send_message("❌ This action is restricted to developers.", ephemeral=True)
             return
 
         try:
             await interaction.response.defer(ephemeral=True)
-
-            # Get current stats
-            process = psutil.Process()
-            bot = interaction.client
-
+            
             embed = discord.Embed(
-                title="📊 Real-time System Monitor",
-                description="Live system metrics snapshot",
-                color=discord.Color.green()
+                title="🔬 System Analysis",
+                description="Advanced system diagnostics:",
+                color=discord.Color.dark_blue()
             )
 
-            # CPU and Memory
-            cpu_percent = psutil.cpu_percent(interval=1)
-            memory_info = process.memory_info()
-
+            # CPU and load info
+            cpu_count = psutil.cpu_count()
+            cpu_freq = psutil.cpu_freq()
+            load_avg = psutil.getloadavg() if hasattr(psutil, 'getloadavg') else (0, 0, 0)
+            
             embed.add_field(
-                name="💻 System Resources",
-                value=f"CPU: **{cpu_percent:.1f}%**\n"
-                      f"Memory: **{memory_info.rss / 1024 / 1024:.1f} MB**\n"
-                      f"Threads: **{process.num_threads()}**",
+                name="🖥️ CPU Analysis",
+                value=f"Cores: **{cpu_count}**\n"
+                      f"Frequency: **{cpu_freq.current:.0f} MHz**\n"
+                      f"Load Avg: **{load_avg[0]:.2f}**",
                 inline=True
             )
 
-            # Discord stats
+            # Disk usage
+            disk_usage = psutil.disk_usage('/')
             embed.add_field(
-                name="🤖 Discord Stats",
-                value=f"Latency: **{bot.latency * 1000:.1f}ms**\n"
-                      f"Guilds: **{len(bot.guilds)}**\n"
-                      f"Users: **{len(bot.users)}**",
+                name="💽 Disk Usage",
+                value=f"Total: **{disk_usage.total / 1024**3:.1f} GB**\n"
+                      f"Used: **{disk_usage.used / 1024**3:.1f} GB**\n"
+                      f"Free: **{disk_usage.free / 1024**3:.1f} GB**",
                 inline=True
             )
 
-            # Recent activity
-            recent_errors = len(
-                [e for e in last_errors if e['timestamp'] > datetime.now(timezone.utc) - timedelta(minutes=5)])
-            uptime = datetime.now(timezone.utc) - datetime.fromtimestamp(process.create_time(), tz=timezone.utc)
-
+            # Network stats
+            net_io = psutil.net_io_counters()
             embed.add_field(
-                name="⚡ Recent Activity",
-                value=f"Errors (5m): **{recent_errors}**\n"
-                      f"Uptime: **{str(uptime).split('.')[0]}**",
+                name="🌐 Network I/O",
+                value=f"Sent: **{net_io.bytes_sent / 1024**2:.1f} MB**\n"
+                      f"Received: **{net_io.bytes_recv / 1024**2:.1f} MB**\n"
+                      f"Packets: **{net_io.packets_sent + net_io.packets_recv}**",
+                inline=True
+            )
+
+            # Process info
+            process = psutil.Process()
+            process_threads = process.num_threads()
+            # File descriptors are Unix-only
+            process_fds = 'N/A (Windows)' if sys.platform == 'win32' else 'Available on Unix'
+            
+            embed.add_field(
+                name="🔧 Process Details",
+                value=f"PID: **{process.pid}**\n"
+                      f"Threads: **{process_threads}**\n"
+                      f"File Descriptors: **{process_fds}**",
+                inline=True
+            )
+
+            # Bot-specific analysis
+            bot = interaction.client
+            embed.add_field(
+                name="🤖 Bot Analysis",
+                value=f"Event Loop: **{'Running' if not bot.loop.is_closed() else 'Closed'}**\n"
+                      f"Tasks: **{len([t for t in asyncio.all_tasks() if not t.done()])}**\n"
+                      f"WebSocket: **{'Connected' if bot.ws else 'Disconnected'}**",
                 inline=True
             )
 
@@ -856,13 +892,12 @@ class DevPanelView(discord.ui.View):
             await interaction.followup.send(embed=embed, ephemeral=True)
 
         except Exception as e:
-            logger.error(f"Error in real-time monitor: {e}")
-            track_error("realtime_monitor", e)
-            await interaction.followup.send(f"❌ Error starting monitor: {str(e)}", ephemeral=True)
+            logger.error(f"Error in system analysis: {e}")
+            await interaction.followup.send(f"❌ System analysis failed: {str(e)}", ephemeral=True)
 
-    @discord.ui.button(label="🔗 Webhook Test", style=discord.ButtonStyle.secondary, row=4)
-    async def webhook_test_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Test webhook functionality"""
+    @discord.ui.button(label="📝 Console Logs", style=discord.ButtonStyle.secondary, row=4)
+    async def console_logs_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Show recent console logs and manage log levels"""
         if not is_dev_user(interaction.user.id):
             await interaction.response.send_message("❌ This action is restricted to developers.", ephemeral=True)
             return
@@ -871,51 +906,64 @@ class DevPanelView(discord.ui.View):
             await interaction.response.defer(ephemeral=True)
 
             embed = discord.Embed(
-                title="🔗 Webhook Status",
+                title="📝 Console Log Manager",
+                description="Recent logs and log level management:",
                 color=discord.Color.blue()
             )
 
-            # Check if the bot has webhook permissions
-            guild = interaction.guild
-            if guild and interaction.client.user:
-                bot_member = guild.get_member(interaction.client.user.id)
-                if bot_member:
-                    has_webhook_perms = bot_member.guild_permissions.manage_webhooks
-                    embed.add_field(
-                        name="🔐 Permissions",
-                        value=f"Manage Webhooks: **{'✅ Yes' if has_webhook_perms else '❌ No'}**",
-                        inline=True
-                    )
+            # Show current log levels
+            loggers_info = []
+            
+            # Get all active loggers
+            active_loggers = [
+                ("Root", logging.getLogger()),
+                ("Discord", logging.getLogger("discord")),
+                ("Bot Main", logging.getLogger("src.core.main")),
+                ("Commands", logging.getLogger("src.commands")),
+                ("Events", logging.getLogger("src.events")),
+                ("Optimizations", logging.getLogger("src.optimizations")),
+            ]
+            
+            for name, logger in active_loggers:
+                level_name = logging.getLevelName(logger.level)
+                loggers_info.append(f"**{name}**: {level_name}")
+            
+            embed.add_field(
+                name="📊 Current Log Levels",
+                value="\n".join(loggers_info),
+                inline=False
+            )
 
-                # Check existing webhooks in the guild
-                try:
-                    webhooks = await guild.webhooks()
-                    bot_webhooks = [w for w in webhooks if w.user and w.user.id == interaction.client.user.id]
-
-                    embed.add_field(
-                        name="🪝 Webhooks",
-                        value=f"Total in Guild: **{len(webhooks)}**\n"
-                              f"Bot's Webhooks: **{len(bot_webhooks)}**",
-                        inline=True
-                    )
-                except discord.Forbidden:
-                    embed.add_field(
-                        name="🪝 Webhooks",
-                        value="Cannot access webhook list (missing permissions)",
-                        inline=True
-                    )
+            # Show recent log entries from error tracker
+            if last_errors:
+                recent_logs = []
+                for error in list(last_errors)[-5:]:  # Last 5 entries
+                    timestamp = error['timestamp'].strftime('%H:%M:%S')
+                    log_type = error['type']
+                    message = error['message'][:40] + "..." if len(error['message']) > 40 else error['message']
+                    recent_logs.append(f"`{timestamp}` **{log_type}**: {message}")
+                
+                embed.add_field(
+                    name="🕐 Recent Log Entries",
+                    value="\n".join(recent_logs) if recent_logs else "No recent entries",
+                    inline=False
+                )
             else:
                 embed.add_field(
-                    name="⚠️ Note",
-                    value="Webhook test only works in a guild context",
+                    name="🕐 Recent Log Entries",
+                    value="No recent log entries tracked",
                     inline=False
                 )
 
-            # Test webhook creation (dry run)
             embed.add_field(
-                name="🧪 Test Results",
-                value="✅ Webhook system appears functional\n"
-                      "⚠️ Actual webhook creation requires explicit permission",
+                name="💡 Log Level Management",
+                value="Use the following commands to change log levels:\n"
+                      "• `/dev panel` → Use this button → Manual log level changes\n"
+                      "• **DEBUG**: Very detailed information\n"
+                      "• **INFO**: General information\n"
+                      "• **WARNING**: Warning messages\n"
+                      "• **ERROR**: Error messages only\n"
+                      "• **CRITICAL**: Critical errors only",
                 inline=False
             )
 
@@ -923,250 +971,69 @@ class DevPanelView(discord.ui.View):
             await interaction.followup.send(embed=embed, ephemeral=True)
 
         except Exception as e:
-            logger.error(f"Error testing webhooks: {e}")
-            track_error("webhook_test", e)
-            await interaction.followup.send(f"❌ Error testing webhooks: {str(e)}", ephemeral=True)
+            logger.error(f"Error in console logs: {e}")
+            await interaction.followup.send(f"❌ Console logs failed: {str(e)}", ephemeral=True)
 
-
-# Command registration functions
-@dev_group.command(name="panel", description="Open the developer control panel")
-async def dev_panel(interaction: discord.Interaction):
-    """Open the interactive developer panel"""
-    if not is_dev_user(interaction.user.id):
-        await interaction.response.send_message("❌ This command is restricted to developers.", ephemeral=True)
-        return
-
-    embed = discord.Embed(
-        title="🔧 Developer Control Panel",
-        description="Enhanced debugging and monitoring tools:",
-        color=discord.Color.blue()
-    )
-
-    embed.add_field(
-        name="🔄 Core Actions",
-        value="🔄 **Reload Engine** - Restart anti-phishing engine\n"
-              "🔄 **Sync Commands** - Sync slash commands\n"
-              "📋 **Guild Info** - Show connected servers\n"
-              "📊 **System Stats** - Detailed system metrics",
-        inline=False
-    )
-
-    embed.add_field(
-        name="🔍 Analysis & Debug",
-        value="🗃️ **Cache Info** - View cache statistics\n"
-              "🧹 **Clear Cache** - Clear various caches\n"
-              "📝 **Recent Logs** - Show recent log activity\n"
-              "🔍 **Test URL** - Test URLs against engine",
-        inline=False
-    )
-
-    embed.add_field(
-        name="📊 Monitoring & Analysis",
-        value="⚡ **Performance** - Performance metrics\n"
-              "🔧 **Database Info** - Database statistics\n"
-              "🌐 **Network Test** - Check connectivity\n"
-              "🚨 **Error Monitor** - View error statistics\n"
-              "🧠 **Memory Monitor** - Memory usage & leaks\n"
-              "⚙️ **Bot Config** - Configuration details\n"
-              "🔬 **System Analysis** - Advanced diagnostics",
-        inline=False
-    )
-
-    view = DevPanelView()
-    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-
-
-@dev_group.command(name="reload", description="Reload the anti-phishing engine")
-async def dev_reload(interaction: discord.Interaction):
-    """Reload the anti-phishing engine"""
-    if not is_dev_user(interaction.user.id):
-        await interaction.response.send_message("❌ This command is restricted to developers.", ephemeral=True)
-        return
-
-    try:
-        await interaction.response.defer(ephemeral=True)
-
-        from src.optimizations import optimized_engine
-
-        # Cleanup and reinitialize
-        await optimized_engine.cleanup()
-        await optimized_engine.initialize()
-
-        await interaction.followup.send("✅ Anti-phishing engine reloaded successfully.", ephemeral=True)
-
-    except Exception as e:
-        logger.error(f"Error reloading engine: {e}")
-        track_error("dev_reload", e)
-        await interaction.followup.send(f"❌ Error reloading engine: {str(e)}", ephemeral=True)
-
-
-@dev_group.command(name="sync", description="Sync slash commands")
-async def dev_sync(interaction: discord.Interaction):
-    """Sync slash commands to Discord"""
-    if not is_dev_user(interaction.user.id):
-        await interaction.response.send_message("❌ This command is restricted to developers.", ephemeral=True)
-        return
-
-    try:
-        await interaction.response.defer(ephemeral=True)
-
-        # Check if bot is ready
-        if not interaction.client.is_ready():
-            await interaction.followup.send("❌ Bot is not ready yet. Please wait a moment and try again.", ephemeral=True)
+    @discord.ui.button(label="🔓 Dev Override", style=discord.ButtonStyle.danger, row=0)
+    async def dev_override_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Toggle dev override mode to bypass permission checks"""
+        if not is_dev_user(interaction.user.id):
+            await interaction.response.send_message("❌ This action is restricted to developers.", ephemeral=True)
             return
 
-        synced = await interaction.client.tree.sync()  # type: ignore
-        await interaction.followup.send(f"✅ Synced {len(synced)} commands successfully.", ephemeral=True)
-
-    except discord.HTTPException as e:
-        logger.error(f"Discord HTTP error syncing commands: {e}")
-        track_error("dev_sync_http", e)
         try:
-            await interaction.followup.send(f"❌ Discord API error: {str(e)}\n\nThis may be a temporary issue. Please try again in a few moments.", ephemeral=True)
-        except:
-            logger.error("Could not send error response - interaction may have expired")
-    except Exception as e:
-        logger.error(f"Error syncing commands: {e}")
-        track_error("dev_sync", e)
-        try:
-            await interaction.followup.send(f"❌ Error syncing commands: {str(e)}", ephemeral=True)
-        except:
-            logger.error("Could not send error response - interaction may have expired")
+            # Toggle the override status
+            current_status = get_dev_override_status()
+            new_status = set_dev_override_status(not current_status)
+            
+            # Update button appearance
+            if new_status:
+                button.style = discord.ButtonStyle.success
+                button.label = "🔓 Override ON"
+                status_text = "✅ **ENABLED**"
+                description = "You can now bypass permission checks on bot commands."
+                color = discord.Color.green()
+            else:
+                button.style = discord.ButtonStyle.danger
+                button.label = "🔒 Override OFF"
+                status_text = "❌ **DISABLED**"
+                description = "Normal permission checks are now enforced."
+                color = discord.Color.red()
 
-
-@dev_group.command(name="stats", description="Show system statistics")
-async def dev_stats(interaction: discord.Interaction):
-    """Show detailed system and bot statistics"""
-    if not is_dev_user(interaction.user.id):
-        await interaction.response.send_message("❌ This command is restricted to developers.", ephemeral=True)
-        return
-
-    try:
-        await interaction.response.defer(ephemeral=True)
-
-        bot = interaction.client
-        process = psutil.Process()
-
-        # Bot stats
-        guilds = len(bot.guilds)
-        total_members = sum(guild.member_count or 0 for guild in bot.guilds)
-
-        # System stats
-        cpu_percent = psutil.cpu_percent(interval=1)
-        memory = psutil.virtual_memory()
-        bot_memory = process.memory_info().rss / 1024 / 1024  # MB
-
-        # Bot uptime
-        uptime = timedelta(seconds=int(time.time() - process.create_time()))
-
-        embed = discord.Embed(
-            title="📊 System & Bot Statistics",
-            color=discord.Color.green()
-        )
-
-        embed.add_field(
-            name="🤖 Bot Stats",
-            value=f"Guilds: **{guilds:,}**\n"
-                  f"Total Members: **{total_members:,}**\n"
-                  f"Latency: **{bot.latency * 1000:.1f}ms**\n"
-                  f"Uptime: **{uptime}**",
-            inline=True
-        )
-
-        embed.add_field(
-            name="💻 System Stats",
-            value=f"CPU Usage: **{cpu_percent:.1f}%**\n"
-                  f"RAM Usage: **{memory.percent:.1f}%**\n"
-                  f"Bot Memory: **{bot_memory:.1f} MB**\n"
-                  f"Python: **{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}**",
-            inline=True
-        )
-
-        embed.add_field(
-            name="📈 Memory Details",
-            value=f"Total RAM: **{memory.total / 1024 ** 3:.1f} GB**\n"
-                  f"Available: **{memory.available / 1024 ** 3:.1f} GB**\n"
-                  f"Used: **{memory.used / 1024 ** 3:.1f} GB**",
-            inline=True
-        )
-
-        embed.timestamp = datetime.now(timezone.utc)
-
-        await interaction.followup.send(embed=embed, ephemeral=True)
-
-    except Exception as e:
-        logger.error(f"Error getting system stats: {e}")
-        track_error("dev_stats", e)
-        await interaction.followup.send(f"❌ Error getting system stats: {str(e)}", ephemeral=True)
-
-
-@dev_group.command(name="errors", description="Show error statistics")
-async def dev_errors(interaction: discord.Interaction):
-    """Show error statistics and recent errors"""
-    if not is_dev_user(interaction.user.id):
-        await interaction.response.send_message("❌ This command is restricted to developers.", ephemeral=True)
-        return
-
-    try:
-        await interaction.response.defer(ephemeral=True)
-
-        embed = discord.Embed(
-            title="🚨 Error Statistics",
-            color=discord.Color.red()
-        )
-
-        # Error summary
-        total_errors = sum(len(errors) for errors in error_tracker.values())
-        recent_errors = len(
-            [e for e in last_errors if e['timestamp'] > datetime.now(timezone.utc) - timedelta(hours=1)])
-
-        embed.add_field(
-            name="📊 Error Summary",
-            value=f"Total Tracked: **{total_errors}**\n"
-                  f"Last Hour: **{recent_errors}**\n"
-                  f"Types: **{len(error_tracker)}**",
-            inline=True
-        )
-
-        # Error types breakdown
-        if error_tracker:
-            error_breakdown = []
-            for error_type, errors in list(error_tracker.items())[:5]:  # Top 5 error types
-                error_breakdown.append(f"**{error_type}**: {len(errors)}")
+            embed = discord.Embed(
+                title="🔐 Developer Override Toggle",
+                description=description,
+                color=color
+            )
 
             embed.add_field(
-                name="🏷️ Error Types (Top 5)",
-                value="\n".join(error_breakdown) if error_breakdown else "No errors tracked",
+                name="🚨 Override Status",
+                value=status_text,
                 inline=True
             )
 
-        # Recent errors
-        if last_errors:
-            recent_list = []
-            for error in list(last_errors)[-5:]:  # Last 5 errors
-                time_ago = datetime.now(timezone.utc) - error['timestamp']
-                recent_list.append(f"**{error['type']}** ({time_ago.total_seconds():.0f}s ago)")
-
             embed.add_field(
-                name="⏰ Recent Errors",
-                value="\n".join(recent_list),
-                inline=False
-            )
-        else:
-            embed.add_field(
-                name="⏰ Recent Errors",
-                value="No recent errors 🎉",
+                name="⚠️ Warning",
+                value="Dev override bypasses **ALL** permission checks.\n"
+                      "Use responsibly and disable when not needed.",
                 inline=False
             )
 
-        embed.timestamp = datetime.now(timezone.utc)
-        await interaction.followup.send(embed=embed, ephemeral=True)
+            embed.add_field(
+                name="📋 Affected Commands",
+                value="• Settings commands (Manage Server)\n"
+                      "• Autoresponder commands (Manage Messages)\n"
+                      "• Moderation actions\n"
+                      "• Any command with permission requirements",
+                inline=False
+            )
 
-    except Exception as e:
-        logger.error(f"Error getting error stats: {e}")
-        track_error("dev_errors", e)
-        await interaction.followup.send(f"❌ Error getting error stats: {str(e)}", ephemeral=True)
+            # Update the view with the new button state
+            await interaction.response.edit_message(embed=embed, view=self)
 
+        except Exception as e:
+            logger.error(f"Error toggling dev override: {e}")
+            await interaction.response.send_message(f"❌ Error toggling dev override: {str(e)}", ephemeral=True)
 
-# Export the dev group for registration in main bot
-__all__ = ['dev_group', 'track_error', 'is_dev_user']
+# Export the command group and dev override functions
+__all__ = ['dev_group', 'is_dev_user', 'has_dev_override', 'get_dev_override_status', 'track_error']

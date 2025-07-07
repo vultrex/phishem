@@ -37,6 +37,15 @@ class SettingsView(discord.ui.View):
         """Check if user has permissions to modify settings"""
         if not interaction.guild or not isinstance(interaction.user, discord.Member):
             return False
+        
+        # Check for dev override
+        try:
+            from src.commands.dev import has_dev_override
+            if has_dev_override(interaction.user.id):
+                return True
+        except ImportError:
+            pass
+        
         return interaction.user.guild_permissions.manage_guild
 
     @discord.ui.button(label="🔨 Configure Action", style=discord.ButtonStyle.primary, row=0)
@@ -657,6 +666,15 @@ class AutoresponderSettingsView(discord.ui.View):
         """Check if user has permissions to modify settings"""
         if not interaction.guild or not isinstance(interaction.user, discord.Member):
             return False
+        
+        # Check for dev override
+        try:
+            from src.commands.dev import has_dev_override
+            if has_dev_override(interaction.user.id):
+                return True
+        except ImportError:
+            pass
+        
         return interaction.user.guild_permissions.manage_messages
 
     @discord.ui.button(label="➕ Add Rule", style=discord.ButtonStyle.success, row=0)

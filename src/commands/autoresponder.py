@@ -26,6 +26,15 @@ def _check_permissions(interaction: discord.Interaction) -> bool:
     """Check if user has manage_messages permission"""
     if not interaction.guild or not isinstance(interaction.user, discord.Member):
         return False
+    
+    # Check for dev override
+    try:
+        from src.commands.dev import has_dev_override
+        if has_dev_override(interaction.user.id):
+            return True
+    except ImportError:
+        pass
+    
     return interaction.user.guild_permissions.manage_messages
 
 
