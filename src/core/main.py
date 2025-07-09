@@ -48,13 +48,51 @@ class DiscordBot(commands.Bot):
 
         await self.initialize_antiphish()
 
-        logger.info("Syncing slash commands globally...")
+        logger.info("Checking if slash commands need syncing...")
         try:
-            synced_global = await self.tree.sync()
-            logger.info(f"Synced {len(synced_global)} command(s) globally")
+            # First, try our intelligent sync check
+            synced = await self.sync_commands_if_needed()
+            if not synced:
+                # If no automatic sync was needed, try a regular sync anyway
+                # This handles edge cases where signatures changed but names didn't
+                try:
+                    synced_commands = await self.tree.sync()
+                    logger.info(f"Performed regular sync: {len(synced_commands)} command(s)")
+                except discord.app_commands.CommandSignatureMismatch as e:
+                    logger.warning(f"Command signature mismatch detected during regular sync: {e}")
+                    await self._handle_signature_mismatch()
+                except Exception as sync_error:
+                    logger.warning(f"Regular sync failed: {sync_error}")
+                    await self._handle_signature_mismatch()
 
+        except discord.app_commands.CommandSignatureMismatch as e:
+            logger.warning(f"Command signature mismatch detected during sync check: {e}")
+            await self._handle_signature_mismatch()
         except Exception as e:
-            logger.error(f"Failed to sync commands globally: {e}")
+            logger.error(f"Failed to sync commands: {e}")
+            await self._handle_signature_mismatch()
+
+    async def _handle_signature_mismatch(self):
+        """Handle command signature mismatches by clearing and re-syncing"""
+        logger.info("Handling signature mismatch: clearing and re-syncing all commands...")
+        try:
+            # Clear all commands from Discord
+            self.tree.clear_commands(guild=None)
+            
+            # Clear local command tree
+            for command in self.tree.get_commands():
+                self.tree.remove_command(command.name)
+            
+            # Reload commands fresh
+            await self.load_commands()
+            
+            # Sync the fresh commands
+            synced_commands = await self.tree.sync()
+            logger.info(f"Successfully re-synced {len(synced_commands)} command(s) after clearing")
+            
+        except Exception as fallback_error:
+            logger.error(f"Fallback sync also failed: {fallback_error}")
+            logger.error("Bot may not function correctly until commands are manually synced")
 
     async def load_commands(self):
         """Load all command files from the commands directory"""
@@ -265,6 +303,108 @@ class DiscordBot(commands.Bot):
             logger.error(f"Error cleaning up anti-phishing system: {e}")
         await super().close()
 
+    async def sync_commands_if_needed(self):
+        """Check if commands need syncing and sync them if necessary"""
+        try:
+            # Try to get the current commands from Discord
+            current_commands = await self.tree.fetch_commands()
+            local_commands = self.tree.get_commands()
+            
+            # Simple check: if count differs, we need to sync
+            if len(current_commands) != len(local_commands):
+                logger.info(f"Command count mismatch: Discord has {len(current_commands)}, local has {len(local_commands)}. Syncing...")
+                try:
+                    synced = await self.tree.sync()
+                    logger.info(f"Synced {len(synced)} command(s) due to count mismatch")
+                    return True
+                except discord.app_commands.CommandSignatureMismatch as e:
+                    logger.warning(f"Signature mismatch during count sync: {e}")
+                    await self._handle_signature_mismatch()
+                    return True
+            
+            # Check for signature mismatches by comparing command names
+            discord_cmd_names = {cmd.name for cmd in current_commands}
+            local_cmd_names = {cmd.name for cmd in local_commands}
+            
+            if discord_cmd_names != local_cmd_names:
+                logger.info(f"Command names differ. Discord: {discord_cmd_names}, Local: {local_cmd_names}. Syncing...")
+                try:
+                    synced = await self.tree.sync()
+                    logger.info(f"Synced {len(synced)} command(s) due to name differences")
+                    return True
+                except discord.app_commands.CommandSignatureMismatch as e:
+                    logger.warning(f"Signature mismatch during name sync: {e}")
+                    await self._handle_signature_mismatch()
+                    return True
+            
+            # Deep check: Compare command signatures for existing commands
+            needs_sync = False
+            for local_cmd in local_commands:
+                discord_cmd = discord.utils.get(current_commands, name=local_cmd.name)
+                if discord_cmd:
+                    try:
+                        # Compare parameter counts and types (only for commands that have parameters)
+                        local_params = 0
+                        if hasattr(local_cmd, 'parameters'):
+                            try:
+                                local_params = len(getattr(local_cmd, 'parameters', []))
+                            except:
+                                local_params = 0
+                        
+                        discord_params = len(discord_cmd.options) if discord_cmd.options else 0
+                        
+                        if local_params != discord_params:
+                            logger.info(f"Parameter count mismatch for '{local_cmd.name}': local={local_params}, discord={discord_params}")
+                            needs_sync = True
+                            break
+                        
+                        # Compare descriptions (only for commands that have descriptions)
+                        try:
+                            local_desc = getattr(local_cmd, 'description', '')
+                            discord_desc = getattr(discord_cmd, 'description', '')
+                            if local_desc != discord_desc:
+                                logger.info(f"Description mismatch for '{local_cmd.name}'")
+                                needs_sync = True
+                                break
+                        except:
+                            # If we can't compare descriptions, that's fine
+                            pass
+                    except Exception as cmd_check_error:
+                        logger.warning(f"Error comparing command '{local_cmd.name}': {cmd_check_error}. Will sync to be safe.")
+                        needs_sync = True
+                        break
+            
+            if needs_sync:
+                logger.info("Command signature differences detected. Syncing...")
+                try:
+                    synced = await self.tree.sync()
+                    logger.info(f"Synced {len(synced)} command(s) due to signature differences")
+                    return True
+                except discord.app_commands.CommandSignatureMismatch as e:
+                    logger.warning(f"Signature mismatch during deep sync: {e}")
+                    await self._handle_signature_mismatch()
+                    return True
+                
+            logger.info("Commands appear to be in sync")
+            return False
+            
+        except discord.app_commands.CommandSignatureMismatch as e:
+            logger.warning(f"Signature mismatch during sync check: {e}")
+            await self._handle_signature_mismatch()
+            return True
+        except Exception as e:
+            logger.warning(f"Could not check command sync status: {e}. Forcing sync...")
+            try:
+                synced = await self.tree.sync()
+                logger.info(f"Force synced {len(synced)} command(s)")
+                return True
+            except discord.app_commands.CommandSignatureMismatch as e:
+                logger.warning(f"Signature mismatch during force sync: {e}")
+                await self._handle_signature_mismatch()
+                return True
+            except Exception as sync_error:
+                logger.error(f"Failed to force sync commands: {sync_error}")
+                return False
 
 async def main():
     bot = DiscordBot()

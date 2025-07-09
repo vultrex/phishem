@@ -1035,5 +1035,132 @@ class DevPanelView(discord.ui.View):
             logger.error(f"Error toggling dev override: {e}")
             await interaction.response.send_message(f"❌ Error toggling dev override: {str(e)}", ephemeral=True)
 
+    @discord.ui.button(label="🔐 Bot Permissions", style=discord.ButtonStyle.secondary, row=3)
+    async def bot_permissions_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Check bot permissions across all guilds"""
+        if not is_dev_user(interaction.user.id):
+            await interaction.response.send_message("❌ This action is restricted to developers.", ephemeral=True)
+            return
+
+        try:
+            await interaction.response.defer(ephemeral=True)
+            
+            embed = discord.Embed(
+                title="🔐 Bot Permissions Analysis",
+                description="Checking bot permissions across all guilds:",
+                color=discord.Color.blue()
+            )
+
+            # Required permissions for full functionality
+            required_perms = {
+                'manage_messages': 'Delete malicious messages',
+                'moderate_members': 'Timeout users', 
+                'kick_members': 'Kick users',
+                'ban_members': 'Ban users',
+                'send_messages': 'Send responses',
+                'embed_links': 'Send rich embeds',
+                'read_message_history': 'Read message content',
+                'use_slash_commands': 'Slash commands'
+            }
+
+            bot = interaction.client
+            guild_issues = []
+            total_guilds = len(bot.guilds)
+            guilds_with_issues = 0
+
+            for guild in bot.guilds:
+                try:
+                    bot_member = guild.me
+                    if not bot_member:
+                        continue
+                        
+                    missing_perms = []
+                    permissions = bot_member.guild_permissions
+                    
+                    # Check each required permission
+                    for perm_name, description in required_perms.items():
+                        if not getattr(permissions, perm_name, False):
+                            missing_perms.append(f"❌ {perm_name.replace('_', ' ').title()}")
+                    
+                    if missing_perms:
+                        guilds_with_issues += 1
+                        guild_issues.append({
+                            'name': guild.name,
+                            'id': guild.id,
+                            'missing': missing_perms,
+                            'member_count': guild.member_count
+                        })
+                        
+                except Exception as e:
+                    guild_issues.append({
+                        'name': guild.name,
+                        'id': guild.id,
+                        'missing': [f"❌ Error checking permissions: {str(e)[:50]}"],
+                        'member_count': getattr(guild, 'member_count', 0)
+                    })
+                    guilds_with_issues += 1
+
+            # Summary
+            embed.add_field(
+                name="📊 Summary",
+                value=f"**Total Guilds:** {total_guilds}\n"
+                      f"**Guilds with Issues:** {guilds_with_issues}\n"
+                      f"**Guilds OK:** {total_guilds - guilds_with_issues}",
+                inline=False
+            )
+
+            # Required permissions list
+            perms_list = []
+            for perm_name, description in required_perms.items():
+                perms_list.append(f"**{perm_name.replace('_', ' ').title()}**: {description}")
+            
+            embed.add_field(
+                name="🔑 Required Permissions",
+                value="\n".join(perms_list),
+                inline=False
+            )
+
+            # Top issues (limited to prevent embed from being too large)
+            if guild_issues:
+                issues_text = []
+                for issue in sorted(guild_issues, key=lambda x: x['member_count'], reverse=True)[:5]:
+                    guild_name = issue['name'][:20] + "..." if len(issue['name']) > 20 else issue['name']
+                    missing_text = "\n".join(issue['missing'][:3])  # Limit to 3 missing perms per guild
+                    if len(issue['missing']) > 3:
+                        missing_text += f"\n... and {len(issue['missing']) - 3} more"
+                    
+                    issues_text.append(f"**{guild_name}** ({issue['member_count']} members)\n{missing_text}")
+                
+                embed.add_field(
+                    name="⚠️ Top Permission Issues (by member count)",
+                    value="\n\n".join(issues_text),
+                    inline=False
+                )
+            else:
+                embed.add_field(
+                    name="✅ Permission Status",
+                    value="All guilds have the required permissions!",
+                    inline=False
+                )
+
+            # Add help text
+            embed.add_field(
+                name="💡 How to Fix",
+                value="1. Go to Discord Developer Portal\n"
+                      "2. Navigate to your bot's OAuth2 > URL Generator\n"
+                      "3. Select 'bot' and 'applications.commands' scopes\n"
+                      "4. Select all required permissions above\n"
+                      "5. Use the generated URL to re-invite the bot\n"
+                      "6. Or manually grant permissions in server settings",
+                inline=False
+            )
+
+            embed.timestamp = datetime.now(timezone.utc)
+            await interaction.followup.send(embed=embed, ephemeral=True)
+
+        except Exception as e:
+            logger.error(f"Error checking bot permissions: {e}")
+            await interaction.followup.send(f"❌ Permission check failed: {str(e)}", ephemeral=True)
+
 # Export the command group and dev override functions
 __all__ = ['dev_group', 'is_dev_user', 'has_dev_override', 'get_dev_override_status', 'track_error']

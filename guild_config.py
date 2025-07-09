@@ -41,7 +41,7 @@ def _ensure_columns_exist(conn):
         'anti_malware_enabled': 'BOOLEAN DEFAULT 1',
         'anti_piracy_enabled': 'BOOLEAN DEFAULT 0',
         'bypass_role_ids': 'TEXT DEFAULT ""',
-        'max_attempts': 'INTEGER DEFAULT 3',
+        'max_attempts': 'INTEGER DEFAULT 1',
         'autoresponder_use_embeds': 'BOOLEAN DEFAULT 0',
         'autoresponder_use_reply': 'BOOLEAN DEFAULT 0',
         'autoresponder_embed_title': 'TEXT DEFAULT ""',
@@ -190,7 +190,7 @@ def get_guild_full_config(guild_id: int) -> dict:
                 'anti_malware_enabled': bool(row[4]) if row[4] is not None else True,
                 'anti_piracy_enabled': bool(row[5]) if row[5] is not None else False,
                 'bypass_role_ids': [int(r) for r in (row[6] or '').split(',') if r.strip().isdigit()],
-                'max_attempts': int(row[7]) if row[7] is not None else 3,
+                'max_attempts': int(row[7]) if row[7] is not None else 1,
                 'autoresponder_use_embeds': bool(row[8]) if row[8] is not None else False,
                 'autoresponder_use_reply': bool(row[9]) if row[9] is not None else False,
                 'autoresponder_embed_title': row[10] or "",
@@ -207,7 +207,7 @@ def get_guild_full_config(guild_id: int) -> dict:
                 'anti_malware_enabled': True,
                 'anti_piracy_enabled': False,
                 'bypass_role_ids': [],
-                'max_attempts': 3,
+                'max_attempts': 1,
                 'autoresponder_use_embeds': False,
                 'autoresponder_use_reply': False,
                 'autoresponder_embed_title': "",
@@ -243,7 +243,7 @@ def set_guild_max_attempts(guild_id: int, max_attempts: int):
         conn = _get_conn()
         conn.execute('UPDATE guild_config SET max_attempts = ? WHERE guild_id = ?', (max_attempts, str(guild_id)))
         if conn.total_changes == 0:
-            conn.execute('INSERT INTO guild_config (guild_id, action, max_attempts) VALUES (?, ?, ?)', (str(guild_id), 'delete', max_attempts))
+            conn.execute('INSERT INTO guild_config (guild_id, action, max_attempts) VALUES (?, ?, ?)', (str(guild_id), 'delete', 1))
         conn.commit()
         conn.close()
 
@@ -255,7 +255,7 @@ def get_guild_max_attempts(guild_id: int) -> int:
         conn.close()
         if row and row[0]:
             return int(row[0])
-        return 3
+        return 1
 
 
 # New: Autoresponder format settings

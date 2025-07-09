@@ -102,7 +102,26 @@ async def send_detection_log(message: discord.Message, analysis_result: Dict[str
             inline=False
         )
 
-        await log_channel.send(embed=embed)
+        # Check if user has been timed out, kicked, or banned - add action buttons if so
+        view = None
+        has_timeout = any("timed out" in action.lower() for action in actions_taken)
+        has_kick = any("kicked" in action.lower() for action in actions_taken)
+        has_ban = any("banned" in action.lower() for action in actions_taken)
+        
+        # Only add buttons if user was timed out but not kicked or banned
+        if has_timeout and not has_kick and not has_ban:
+            view = ActionView(
+                user_id=message.author.id,
+                user_mention=message.author.mention,
+                message_content=message.content,
+                reason=f"Malicious content posted: {threat_type}"
+            )
+
+        # Send the log message with or without view
+        if view:
+            await log_channel.send(embed=embed, view=view)
+        else:
+            await log_channel.send(embed=embed)
         logger.info(f"Sent detection log for {threat_type} from {message.author} to {log_channel.name}")
 
     except Exception as e:
@@ -821,3 +840,157 @@ async def cleanup_anti_phish():
         logger.info("Anti-phishing system cleaned up")
     except Exception as e:
         logger.error(f"Error cleaning up anti-phishing system: {e}")
+
+
+class ActionView(discord.ui.View):
+    """View for moderator actions (kick/ban) in log messages"""
+
+    def __init__(self, user_id: int, user_mention: str, message_content: str, reason: str):
+        super().__init__(timeout=300)  # 5 minute timeout
+        self.user_id = user_id
+        self.user_mention = user_mention
+        self.message_content = message_content
+        self.reason = reason
+
+    def _check_permissions(self, interaction: discord.Interaction) -> bool:
+        """Check if user has permissions to kick/ban"""
+        if not interaction.guild or not isinstance(interaction.user, discord.Member):
+            return False
+        
+        return interaction.user.guild_permissions.kick_members or interaction.user.guild_permissions.ban_members
+
+    @discord.ui.button(label="🔨 Kick User", style=discord.ButtonStyle.secondary, emoji="👢")
+    async def kick_user_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Kick the user who posted malicious content"""
+        if not self._check_permissions(interaction):
+            await interaction.response.send_message(
+                "❌ You need 'Kick Members' permission to use this.", ephemeral=True
+            )
+            return
+
+        if not interaction.guild:
+            await interaction.response.send_message("❌ This can only be used in a server.", ephemeral=True)
+            return
+
+        try:
+            # Get the user
+            user = interaction.guild.get_member(self.user_id)
+            if not user:
+                await interaction.response.send_message(
+                    "❌ User is no longer in the server.", ephemeral=True
+                )
+                return
+
+            # Create detailed reason
+            kick_reason = f"Malicious content posted. Message: {self.message_content[:100]}{'...' if len(self.message_content) > 100 else ''} | Moderator: {interaction.user} ({interaction.user.id})"
+
+            # Kick the user
+            await user.kick(reason=kick_reason)
+
+            # Create response embed
+            embed = discord.Embed(
+                title="✅ User Kicked",
+                description=f"{self.user_mention} has been kicked from the server.",
+                color=discord.Color.orange(),
+                timestamp=datetime.now(timezone.utc)
+            )
+            embed.add_field(name="Kicked by", value=interaction.user.mention, inline=True)
+            embed.add_field(name="Reason", value="Posted malicious content", inline=True)
+            embed.add_field(name="Original Message", value=f"```{self.message_content[:200]}{'...' if len(self.message_content) > 200 else ''}```", inline=False)
+
+            # Disable both buttons and update the view
+            for item in self.children:
+                if isinstance(item, discord.ui.Button):
+                    item.disabled = True
+            button.label = "✅ User Kicked"
+            button.style = discord.ButtonStyle.success
+
+            await interaction.response.edit_message(view=self)
+            await interaction.followup.send(embed=embed, ephemeral=False)
+
+            logger.info(f"User {user} ({user.id}) kicked by {interaction.user} for malicious content in {interaction.guild.name}")
+
+        except discord.Forbidden:
+            await interaction.response.send_message(
+                "❌ Cannot kick user. The bot may lack permissions or the user has a higher role.", ephemeral=True
+            )
+        except discord.HTTPException as e:
+            await interaction.response.send_message(
+                f"❌ Failed to kick user: {str(e)}", ephemeral=True
+            )
+        except Exception as e:
+            logger.error(f"Error kicking user: {e}")
+            await interaction.response.send_message(
+                "❌ An error occurred while trying to kick the user.", ephemeral=True
+            )
+
+    @discord.ui.button(label="🔨 Ban User", style=discord.ButtonStyle.danger, emoji="🔨")
+    async def ban_user_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Ban the user who posted malicious content"""
+        if not self._check_permissions(interaction):
+            await interaction.response.send_message(
+                "❌ You need 'Ban Members' permission to use this.", ephemeral=True
+            )
+            return
+
+        if not interaction.guild:
+            await interaction.response.send_message("❌ This can only be used in a server.", ephemeral=True)
+            return
+
+        try:
+            # Get the user
+            user = interaction.guild.get_member(self.user_id)
+            if not user:
+                # Try to ban by ID if user is no longer in server
+                try:
+                    await interaction.guild.ban(discord.Object(id=self.user_id), 
+                                               reason=f"Malicious content posted. Message: {self.message_content[:100]}{'...' if len(self.message_content) > 100 else ''} | Moderator: {interaction.user} ({interaction.user.id})", 
+                                               delete_message_days=1)
+                except:
+                    await interaction.response.send_message(
+                        "❌ User is no longer in the server and could not be banned.", ephemeral=True
+                    )
+                    return
+            else:
+                # Create detailed reason
+                ban_reason = f"Malicious content posted. Message: {self.message_content[:100]}{'...' if len(self.message_content) > 100 else ''} | Moderator: {interaction.user} ({interaction.user.id})"
+
+                # Ban the user
+                await user.ban(reason=ban_reason, delete_message_days=1)
+
+            # Create response embed
+            embed = discord.Embed(
+                title="✅ User Banned",
+                description=f"{self.user_mention} has been banned from the server.",
+                color=discord.Color.red(),
+                timestamp=datetime.now(timezone.utc)
+            )
+            embed.add_field(name="Banned by", value=interaction.user.mention, inline=True)
+            embed.add_field(name="Reason", value="Posted malicious content", inline=True)
+            embed.add_field(name="Original Message", value=f"```{self.message_content[:200]}{'...' if len(self.message_content) > 200 else ''}```", inline=False)
+
+            # Disable both buttons and update the view
+            for item in self.children:
+                if isinstance(item, discord.ui.Button):
+                    item.disabled = True
+            button.label = "✅ User Banned"
+            button.style = discord.ButtonStyle.success
+
+            await interaction.response.edit_message(view=self)
+            await interaction.followup.send(embed=embed, ephemeral=False)
+
+            logger.info(f"User {self.user_mention} ({self.user_id}) banned by {interaction.user} for malicious content in {interaction.guild.name}")
+
+        except discord.Forbidden:
+            await interaction.response.send_message(
+                "❌ Cannot ban user. The bot may lack permissions or the user has a higher role.", ephemeral=True
+            )
+        except discord.HTTPException as e:
+            await interaction.response.send_message(
+                f"❌ Failed to ban user: {str(e)}", ephemeral=True
+            )
+        except Exception as e:
+            logger.error(f"Error banning user: {e}")
+            await interaction.response.send_message(
+                "❌ An error occurred while trying to ban the user.", ephemeral=True
+            )
