@@ -41,23 +41,31 @@ class AutoresponderEngine:
 
     def _matches_pattern(self, message_content: str, rule: Dict[str, Any]) -> bool:
         """Check if message content matches a rule pattern"""
-        trigger_pattern = rule['trigger_pattern']
+        trigger_patterns = rule['trigger_patterns']
         is_regex = rule['is_regex']
         case_sensitive = rule['case_sensitive']
 
-        if is_regex:
-            # Use regex matching
-            try:
-                pattern = self._compile_pattern(trigger_pattern, case_sensitive)
-                return bool(pattern.search(message_content))
-            except Exception as e:
-                logger.error(f"Error matching regex pattern '{trigger_pattern}': {e}")
-                return False
-        else:
-            # Simple substring matching
-            content = message_content if case_sensitive else message_content.lower()
-            pattern = trigger_pattern if case_sensitive else trigger_pattern.lower()
-            return pattern in content
+        # Handle both list of patterns and single pattern
+        patterns_to_check = trigger_patterns if isinstance(trigger_patterns, list) else [trigger_patterns]
+
+        for trigger_pattern in patterns_to_check:
+            if is_regex:
+                # Use regex matching
+                try:
+                    pattern = self._compile_pattern(trigger_pattern, case_sensitive)
+                    if pattern.search(message_content):
+                        return True
+                except Exception as e:
+                    logger.error(f"Error matching regex pattern '{trigger_pattern}': {e}")
+                    continue
+            else:
+                # Simple substring matching
+                content = message_content if case_sensitive else message_content.lower()
+                pattern = trigger_pattern if case_sensitive else trigger_pattern.lower()
+                if pattern in content:
+                    return True
+        
+        return False
 
     async def process_message(self, message: discord.Message) -> Optional[Dict[str, Any]]:
         """

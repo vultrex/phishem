@@ -11,7 +11,8 @@ from guild_config import (
     remove_autoresponder_rule,
     get_autoresponder_rules,
     toggle_autoresponder_rule,
-    get_autoresponder_rule_count
+    get_autoresponder_rule_count,
+    edit_autoresponder_rule
 )
 from src.core.config import config
 from src.features.autoresponder import autoresponder_engine
@@ -46,7 +47,7 @@ def _check_guild(interaction: discord.Interaction) -> bool:
 @autoresponder_group.command(name="add", description="Add a new autoresponder rule")
 @app_commands.describe(
     rule_name="Name for this autoresponder rule",
-    trigger_pattern="Pattern that will trigger the autoresponse",
+    trigger_pattern="Pattern(s) that will trigger the autoresponse (separate multiple with commas)",
     response_message="Message to send when triggered",
     is_regex="Whether the trigger pattern is a regex (default: False)",
     case_sensitive="Whether matching should be case sensitive (default: False)"
@@ -185,7 +186,12 @@ async def list_rules(interaction: discord.Interaction):
             rule_type = "🔤 Regex" if rule['is_regex'] else "📝 Text"
             case_info = " (Case Sensitive)" if rule['case_sensitive'] else ""
 
-            trigger_display = rule['trigger_pattern'][:50] + ("..." if len(rule['trigger_pattern']) > 50 else "")
+            # Handle multiple triggers display
+            triggers = rule['trigger_patterns'] if isinstance(rule['trigger_patterns'], list) else [rule['trigger_patterns']]
+            trigger_display = ', '.join(triggers)
+            if len(trigger_display) > 50:
+                trigger_display = trigger_display[:47] + "..."
+            
             response_display = rule['response_message'][:100] + ("..." if len(rule['response_message']) > 100 else "")
 
             embed.add_field(
@@ -278,7 +284,7 @@ async def test_rule(interaction: discord.Interaction, rule_name: str, test_messa
         )
 
         embed.add_field(name="Test Message", value=f"```{test_message}```", inline=False)
-        embed.add_field(name="Trigger Pattern", value=f"`{rule['trigger_pattern']}`", inline=False)
+        embed.add_field(name="Trigger Patterns", value=f"`{', '.join(rule['trigger_patterns'])}`", inline=False)
         embed.add_field(name="Match Result", value="✅ Matches" if matches else "❌ No Match", inline=True)
         embed.add_field(name="Rule Type", value="Regex" if rule['is_regex'] else "Text", inline=True)
         embed.add_field(name="Case Sensitive", value="Yes" if rule['case_sensitive'] else "No", inline=True)
@@ -325,7 +331,7 @@ async def rule_info(interaction: discord.Interaction, rule_name: str):
         embed.add_field(name="Status", value="🟢 Enabled" if rule['is_enabled'] else "🔴 Disabled", inline=True)
         embed.add_field(name="Type", value="🔤 Regex" if rule['is_regex'] else "📝 Text", inline=True)
         embed.add_field(name="Case Sensitive", value="Yes" if rule['case_sensitive'] else "No", inline=True)
-        embed.add_field(name="Trigger Pattern", value=f"```{rule['trigger_pattern']}```", inline=False)
+        embed.add_field(name="Trigger Patterns", value=f"```{', '.join(rule['trigger_patterns'])}```", inline=False)
         embed.add_field(name="Response Message",
                         value=rule['response_message'][:1000] + ("..." if len(rule['response_message']) > 1000 else ""),
                         inline=False)
@@ -336,6 +342,97 @@ async def rule_info(interaction: discord.Interaction, rule_name: str):
     except Exception as e:
         logger.error(f"Error in rule_info command: {e}")
         await interaction.response.send_message("❌ An error occurred while getting rule information.", ephemeral=True)
+
+
+@autoresponder_group.command(name="edit", description="Edit an existing autoresponder rule")
+@app_commands.describe(
+    rule_name="Name of the rule to edit",
+    new_trigger_patterns="New trigger patterns separated by commas (leave blank to keep current)",
+    new_response_message="New response message (leave blank to keep current)",
+    is_regex="Whether the trigger pattern is a regex",
+    case_sensitive="Whether matching should be case sensitive"
+)
+async def edit_rule(interaction: discord.Interaction, rule_name: str, 
+                    new_trigger_patterns: str | None = None, new_response_message: str | None = None,
+                    is_regex: bool | None = None, case_sensitive: bool | None = None):
+    """Edit an existing autoresponder rule"""
+    try:
+        if not _check_guild(interaction):
+            await interaction.response.send_message("❌ This command can only be used in a server.", ephemeral=True)
+            return
+
+        if not _check_permissions(interaction):
+            await interaction.response.send_message("❌ You need 'Manage Messages' permission to use this command.",
+                                                    ephemeral=True)
+            return
+
+        assert interaction.guild is not None  # Type assertion for type checker
+        
+        # Check if rule exists
+        rules = get_autoresponder_rules(interaction.guild.id)
+        current_rule = next((r for r in rules if r['rule_name'] == rule_name), None)
+
+        if not current_rule:
+            await interaction.response.send_message(f"❌ No autoresponder rule found with the name **{rule_name}**.",
+                                                    ephemeral=True)
+            return
+
+        # Validate new trigger patterns if provided
+        new_trigger_patterns_list = None
+        if new_trigger_patterns is not None:
+            new_trigger_patterns_list = [p.strip() for p in new_trigger_patterns.split(',') if p.strip()]
+            # Validate each pattern
+            for pattern in new_trigger_patterns_list:
+                is_valid, error_msg = autoresponder_engine.validate_rule(pattern, is_regex or current_rule['is_regex'], case_sensitive or current_rule['case_sensitive'])
+                if not is_valid:
+                    await interaction.response.send_message(f"❌ Invalid trigger pattern '{pattern}': {error_msg}", ephemeral=True)
+                    return
+
+        # Validate new response if provided
+        if new_response_message is not None:
+            is_valid, error_msg = autoresponder_engine.validate_response(new_response_message)
+            if not is_valid:
+                await interaction.response.send_message(f"❌ Invalid response message: {error_msg}", ephemeral=True)
+                return
+
+        # Update the rule
+        success = edit_autoresponder_rule(
+            interaction.guild.id,
+            rule_name,
+            new_trigger_patterns=new_trigger_patterns_list,
+            new_response_message=new_response_message,
+            new_is_regex=is_regex,
+            new_case_sensitive=case_sensitive
+        )
+
+        if success:
+            embed = discord.Embed(
+                title="✅ Autoresponder Rule Updated",
+                color=discord.Color.green(),
+                description=f"Rule **{rule_name}** has been updated successfully."
+            )
+            
+            # Show what was changed
+            changes = []
+            if new_trigger_patterns_list:
+                changes.append(f"**Trigger Patterns:** `{', '.join(new_trigger_patterns_list)}`")
+            if new_response_message is not None:
+                changes.append(f"**Response:** {new_response_message[:200]}{'...' if len(new_response_message) > 200 else ''}")
+            if is_regex is not None:
+                changes.append(f"**Type:** {'Regex' if is_regex else 'Text'}")
+            if case_sensitive is not None:
+                changes.append(f"**Case Sensitive:** {'Yes' if case_sensitive else 'No'}")
+            
+            if changes:
+                embed.add_field(name="Changes Made", value="\n".join(changes), inline=False)
+            
+            await interaction.response.send_message(embed=embed)
+        else:
+            await interaction.response.send_message(f"❌ Failed to update rule **{rule_name}**.", ephemeral=True)
+
+    except Exception as e:
+        logger.error(f"Error in edit_rule command: {e}")
+        await interaction.response.send_message("❌ An error occurred while editing the rule.", ephemeral=True)
 
 
 # Help command for autoresponder
@@ -363,6 +460,7 @@ async def autoresponder_help(interaction: discord.Interaction):
             `/autoresponder toggle` - Enable/disable a rule
             `/autoresponder test` - Test a rule
             `/autoresponder info` - Get rule details
+            `/autoresponder edit` - Edit an existing rule
             """,
             inline=False
         )
@@ -382,13 +480,24 @@ async def autoresponder_help(interaction: discord.Interaction):
             Simple text: `hello` matches "hello world"
             Regex: `(?i)help.*` matches "HELP ME" (case insensitive)
             Case sensitive: `Hello` only matches "Hello" (not "hello")
+            Multiple triggers: `hello,hi,hey` matches any of these words
+            """,
+            inline=False
+        )
+
+        embed.add_field(
+            name="✏️ Editing Rules",
+            value="""
+            Use `/autoresponder edit` to modify existing rules
+            You can change: triggers, response message, regex/text mode, case sensitivity
+            Multiple triggers: Separate with commas when editing
             """,
             inline=False
         )
 
         embed.set_footer(text=f"Cooldown: {config.AUTORESPONDER_COOLDOWN}s between responses per user")
 
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.response.send_message(embed=embed)
 
     except Exception as e:
         logger.error(f"Error in autoresponder_help command: {e}")

@@ -714,13 +714,14 @@ class AutoresponderSettingsView(discord.ui.View):
 
                 for rule in rules[:10]:  # Limit to first 10 rules to avoid embed limits
                     status = "✅ Active" if rule.get('enabled', True) else "❌ Inactive"
-                    trigger = rule['trigger_pattern']
-                    if len(trigger) > 50:
-                        trigger = trigger[:47] + "..."
+                    triggers = rule['trigger_patterns'] if isinstance(rule['trigger_patterns'], list) else [rule['trigger_patterns']]
+                    trigger_display = ', '.join(triggers)
+                    if len(trigger_display) > 50:
+                        trigger_display = trigger_display[:47] + "..."
 
                     embed.add_field(
                         name=f"🔹 {rule['rule_name']} ({status})",
-                        value=f"**Trigger:** `{trigger}`\n**Response:** {rule['response_message'][:100]}{'...' if len(rule['response_message']) > 100 else ''}",
+                        value=f"**Trigger:** `{trigger_display}`\n**Response:** {rule['response_message'][:100]}{'...' if len(rule['response_message']) > 100 else ''}",
                         inline=False
                     )
 
@@ -794,6 +795,16 @@ class AutoresponderSettingsView(discord.ui.View):
                   "• `(?i)\\bballs?\\b` - matches 'ball' or 'balls'\n"
                   "• `^spam` - matches messages starting with 'spam'\n"
                   "• `\\d{3,}` - matches 3 or more digits",
+            inline=False
+        )
+        
+        # Multiple triggers
+        embed.add_field(
+            name="🔄 Multiple Triggers",
+            value="• Separate multiple triggers with commas\n"
+                  "• Example: `hello,hi,hey` matches any of these\n"
+                  "• Works with both text and regex patterns\n"
+                  "• All triggers in a rule share the same settings",
             inline=False
         )
         
@@ -1011,8 +1022,8 @@ class AddAutoresponderRuleModal(discord.ui.Modal, title="Add Autoresponder Rule"
         self.add_item(self.rule_name)
 
         self.trigger_pattern = discord.ui.TextInput(
-            label="Trigger Pattern",
-            placeholder="Enter pattern (plain text or regex)",
+            label="Trigger Pattern(s)",
+            placeholder="Enter pattern(s) - separate multiple with commas",
             max_length=500,
             required=True
         )
@@ -1496,6 +1507,152 @@ class ConfigureEmbedModal(discord.ui.Modal, title="Configure Autoresponder Embed
             logger.error(f"Error configuring embed settings: {e}")
             await interaction.response.send_message(
                 "❌ Error saving embed configuration. Please try again.",
+                ephemeral=True
+            )
+
+
+class EditAutoresponderRuleModal(discord.ui.Modal, title="Edit Autoresponder Rule"):
+    """Modal for editing autoresponder rules"""
+    
+    def __init__(self, guild_id: int):
+        super().__init__()
+        self.guild_id = guild_id
+
+        self.rule_name = discord.ui.TextInput(
+            label="Rule Name to Edit",
+            placeholder="Enter the exact name of the rule to edit",
+            max_length=100,
+            required=True
+        )
+        self.add_item(self.rule_name)
+
+        self.new_trigger_patterns = discord.ui.TextInput(
+            label="New Trigger Patterns (optional)",
+            placeholder="Enter new trigger patterns separated by commas",
+            max_length=500,
+            required=False
+        )
+        self.add_item(self.new_trigger_patterns)
+
+        self.new_response_message = discord.ui.TextInput(
+            label="New Response Message (optional)",
+            placeholder="Enter new response message or JSON embed",
+            style=discord.TextStyle.paragraph,
+            max_length=2000,
+            required=False
+        )
+        self.add_item(self.new_response_message)
+
+        self.new_options = discord.ui.TextInput(
+            label="New Options (optional)",
+            placeholder="case_sensitive=false, is_regex=true",
+            max_length=200,
+            required=False
+        )
+        self.add_item(self.new_options)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        try:
+            if not interaction.guild:
+                await interaction.response.send_message("❌ This can only be used in a server.", ephemeral=True)
+                return
+
+            rule_name = self.rule_name.value.strip()
+            new_trigger_patterns_str = self.new_trigger_patterns.value.strip() if self.new_trigger_patterns.value else ""
+            new_response_message = self.new_response_message.value.strip() if self.new_response_message.value else ""
+            new_options_str = self.new_options.value.strip() if self.new_options.value else ""
+
+            # Check if rule exists
+            from guild_config import get_autoresponder_rules
+            rules = get_autoresponder_rules(self.guild_id)
+            current_rule = next((r for r in rules if r['rule_name'] == rule_name), None)
+
+            if not current_rule:
+                await interaction.response.send_message(
+                    f"❌ No autoresponder rule named '{rule_name}' found.",
+                    ephemeral=True
+                )
+                return
+
+            # Parse new options
+            new_options = {}
+            if new_options_str:
+                for option in new_options_str.split(','):
+                    if '=' in option:
+                        key, value = option.split('=', 1)
+                        key = key.strip().lower()
+                        value = value.strip().lower()
+                        if value in ['true', 'false']:
+                            new_options[key] = value == 'true'
+
+            # Prepare parameters for edit
+            new_trigger_patterns_list = None
+            if new_trigger_patterns_str:
+                new_trigger_patterns_list = [t.strip() for t in new_trigger_patterns_str.split(',') if t.strip()]
+
+            new_response = new_response_message if new_response_message else None
+            new_is_regex = new_options.get('is_regex', None)
+            new_case_sensitive = new_options.get('case_sensitive', None)
+
+            # Check if anything to update
+            if not any([new_trigger_patterns_list, new_response, new_is_regex is not None, new_case_sensitive is not None]):
+                await interaction.response.send_message(
+                    "❌ No changes specified. Please provide at least one field to update.",
+                    ephemeral=True
+                )
+                return
+
+            # Validate new response if provided
+            if new_response:
+                from src.features.autoresponder import autoresponder_engine
+                is_valid, error_msg = autoresponder_engine.validate_response(new_response)
+                if not is_valid:
+                    await interaction.response.send_message(f"❌ Invalid response message: {error_msg}", ephemeral=True)
+                    return
+
+            # Update the rule
+            from guild_config import edit_autoresponder_rule
+            success = edit_autoresponder_rule(
+                self.guild_id,
+                rule_name,
+                new_trigger_patterns=new_trigger_patterns_list,
+                new_response_message=new_response,
+                new_is_regex=new_is_regex,
+                new_case_sensitive=new_case_sensitive
+            )
+
+            if success:
+                embed = discord.Embed(
+                    title="✅ Autoresponder Rule Updated",
+                    description=f"Successfully updated rule: **{rule_name}**",
+                    color=discord.Color.green()
+                )
+                
+                # Show what was changed
+                changes = []
+                if new_trigger_patterns_list:
+                    changes.append(f"**Trigger Patterns:** {', '.join(f'`{t}`' for t in new_trigger_patterns_list)}")
+                if new_response:
+                    changes.append(f"**Response:** {new_response[:200]}{'...' if len(new_response) > 200 else ''}")
+                if new_is_regex is not None:
+                    changes.append(f"**Type:** {'🔤 Regex' if new_is_regex else '📝 Text'}")
+                if new_case_sensitive is not None:
+                    changes.append(f"**Case Sensitive:** {'Yes' if new_case_sensitive else 'No'}")
+                
+                if changes:
+                    embed.add_field(name="Changes Made", value="\n".join(changes), inline=False)
+                
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+            else:
+                await interaction.response.send_message(
+                    f"❌ Failed to update autoresponder rule '{rule_name}'.",
+                    ephemeral=True
+                )
+
+        except Exception as e:
+            logger.error(f"Error editing autoresponder rule: {e}")
+            await interaction.response.send_message(
+                "❌ Error editing autoresponder rule. Please try again.",
                 ephemeral=True
             )
 
