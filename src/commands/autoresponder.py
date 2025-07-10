@@ -172,7 +172,7 @@ async def list_rules(interaction: discord.Interaction):
                 description="No autoresponder rules configured for this server.",
                 color=discord.Color.blue()
             )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.response.send_message(embed=embed, ephemeral=False)
             return
 
         embed = discord.Embed(
@@ -203,7 +203,7 @@ async def list_rules(interaction: discord.Interaction):
         if len(rules) > 10:
             embed.set_footer(text=f"Showing first 10 of {len(rules)} rules")
 
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.response.send_message(embed=embed, ephemeral=False)
 
     except Exception as e:
         logger.error(f"Error in list_rules command: {e}")
@@ -337,7 +337,7 @@ async def rule_info(interaction: discord.Interaction, rule_name: str):
                         inline=False)
         embed.add_field(name="Created", value=rule['created_at'], inline=True)
 
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.response.send_message(embed=embed, ephemeral=False)
 
     except Exception as e:
         logger.error(f"Error in rule_info command: {e}")

@@ -64,6 +64,48 @@ def set_dev_override_status(enabled: bool) -> bool:
 dev_group = app_commands.Group(name="dev", description="Developer commands")
 
 
+@dev_group.command(name="panel", description="Open the developer control panel")
+async def dev_panel(interaction: discord.Interaction):
+    """Show the interactive developer panel"""
+    if not is_dev_user(interaction.user.id):
+        await interaction.response.send_message("❌ This command is restricted to developers.", ephemeral=True)
+        return
+
+    try:
+        # Create the developer panel view
+        view = DevPanelView()
+        
+        # Create main panel embed
+        embed = discord.Embed(
+            title="🔧 Developer Control Panel",
+            description="Advanced debugging and monitoring tools:",
+            color=discord.Color.blue()
+        )
+        
+        # Show dev override status
+        override_status = get_dev_override_status()
+        override_status_text = "🔓 **ENABLED**" if override_status else "🔒 **DISABLED**"
+        embed.add_field(
+            name="🚨 Dev Override Status",
+            value=f"Permission Bypass: {override_status_text}",
+            inline=False
+        )
+        
+        embed.add_field(
+            name="ℹ️ Usage",
+            value="Use the buttons below to access various debugging and monitoring tools.\n"
+                  "All actions are developer-only and logged for security.",
+            inline=False
+        )
+        
+        embed.timestamp = datetime.now(timezone.utc)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=False)
+        
+    except Exception as e:
+        logger.error(f"Error creating dev panel: {e}")
+        await interaction.response.send_message(f"❌ Error creating dev panel: {str(e)}", ephemeral=True)
+
+
 class DevPanelView(discord.ui.View):
     """Interactive developer panel with buttons"""
 
@@ -1037,7 +1079,7 @@ class DevPanelView(discord.ui.View):
 
     @discord.ui.button(label="🔐 Bot Permissions", style=discord.ButtonStyle.secondary, row=3)
     async def bot_permissions_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Check bot permissions across all guilds"""
+        """Check bot permissions for the current server"""
         if not is_dev_user(interaction.user.id):
             await interaction.response.send_message("❌ This action is restricted to developers.", ephemeral=True)
             return
@@ -1045,9 +1087,21 @@ class DevPanelView(discord.ui.View):
         try:
             await interaction.response.defer(ephemeral=True)
             
+            # Check if we're in a guild
+            if not interaction.guild:
+                await interaction.followup.send("❌ This command must be used in a server.", ephemeral=True)
+                return
+            
+            guild = interaction.guild
+            bot_member = guild.me
+            
+            if not bot_member:
+                await interaction.followup.send("❌ Could not find bot member in this server.", ephemeral=True)
+                return
+            
             embed = discord.Embed(
                 title="🔐 Bot Permissions Analysis",
-                description="Checking bot permissions across all guilds:",
+                description=f"Checking bot permissions for **{guild.name}**:",
                 color=discord.Color.blue()
             )
 
@@ -1060,100 +1114,92 @@ class DevPanelView(discord.ui.View):
                 'send_messages': 'Send responses',
                 'embed_links': 'Send rich embeds',
                 'read_message_history': 'Read message content',
-                'use_slash_commands': 'Slash commands'
+                'use_slash_commands': 'Slash commands',
+                'view_channel': 'View channels',
+                'read_messages': 'Read messages',
+                'send_messages_in_threads': 'Send messages in threads',
+                'manage_threads': 'Manage threads',
+                'use_external_emojis': 'Use external emojis'
             }
 
-            bot = interaction.client
-            guild_issues = []
-            total_guilds = len(bot.guilds)
-            guilds_with_issues = 0
-
-            for guild in bot.guilds:
-                try:
-                    bot_member = guild.me
-                    if not bot_member:
-                        continue
-                        
-                    missing_perms = []
-                    permissions = bot_member.guild_permissions
-                    
-                    # Check each required permission
-                    for perm_name, description in required_perms.items():
-                        if not getattr(permissions, perm_name, False):
-                            missing_perms.append(f"❌ {perm_name.replace('_', ' ').title()}")
-                    
-                    if missing_perms:
-                        guilds_with_issues += 1
-                        guild_issues.append({
-                            'name': guild.name,
-                            'id': guild.id,
-                            'missing': missing_perms,
-                            'member_count': guild.member_count
-                        })
-                        
-                except Exception as e:
-                    guild_issues.append({
-                        'name': guild.name,
-                        'id': guild.id,
-                        'missing': [f"❌ Error checking permissions: {str(e)[:50]}"],
-                        'member_count': getattr(guild, 'member_count', 0)
-                    })
-                    guilds_with_issues += 1
+            permissions = bot_member.guild_permissions
+            permission_status = []
+            missing_count = 0
+            
+            # Check each required permission
+            for perm_name, description in required_perms.items():
+                has_perm = getattr(permissions, perm_name, False)
+                status_icon = "✅" if has_perm else "❌"
+                if not has_perm:
+                    missing_count += 1
+                
+                perm_display = perm_name.replace('_', ' ').title()
+                permission_status.append(f"{status_icon} **{perm_display}** - {description}")
 
             # Summary
-            embed.add_field(
-                name="📊 Summary",
-                value=f"**Total Guilds:** {total_guilds}\n"
-                      f"**Guilds with Issues:** {guilds_with_issues}\n"
-                      f"**Guilds OK:** {total_guilds - guilds_with_issues}",
-                inline=False
-            )
-
-            # Required permissions list
-            perms_list = []
-            for perm_name, description in required_perms.items():
-                perms_list.append(f"**{perm_name.replace('_', ' ').title()}**: {description}")
+            total_perms = len(required_perms)
+            granted_perms = total_perms - missing_count
+            
+            if missing_count == 0:
+                summary_color = "🟢"
+                summary_text = "All permissions granted!"
+            elif missing_count <= 2:
+                summary_color = "🟡"
+                summary_text = "Minor permissions missing"
+            else:
+                summary_color = "🔴"
+                summary_text = "Critical permissions missing"
             
             embed.add_field(
-                name="🔑 Required Permissions",
-                value="\n".join(perms_list),
+                name="📊 Summary",
+                value=f"{summary_color} **Status:** {summary_text}\n"
+                      f"**Granted:** {granted_perms}/{total_perms} permissions\n"
+                      f"**Missing:** {missing_count} permissions\n"
+                      f"**Server:** {guild.name} ({guild.member_count} members)",
                 inline=False
             )
 
-            # Top issues (limited to prevent embed from being too large)
-            if guild_issues:
-                issues_text = []
-                for issue in sorted(guild_issues, key=lambda x: x['member_count'], reverse=True)[:5]:
-                    guild_name = issue['name'][:20] + "..." if len(issue['name']) > 20 else issue['name']
-                    missing_text = "\n".join(issue['missing'][:3])  # Limit to 3 missing perms per guild
-                    if len(issue['missing']) > 3:
-                        missing_text += f"\n... and {len(issue['missing']) - 3} more"
-                    
-                    issues_text.append(f"**{guild_name}** ({issue['member_count']} members)\n{missing_text}")
-                
-                embed.add_field(
-                    name="⚠️ Top Permission Issues (by member count)",
-                    value="\n\n".join(issues_text),
-                    inline=False
-                )
-            else:
-                embed.add_field(
-                    name="✅ Permission Status",
-                    value="All guilds have the required permissions!",
-                    inline=False
-                )
-
-            # Add help text
+            # Split permissions into two columns for better readability
+            mid_point = len(permission_status) // 2
+            first_half = permission_status[:mid_point]
+            second_half = permission_status[mid_point:]
+            
             embed.add_field(
-                name="💡 How to Fix",
-                value="1. Go to Discord Developer Portal\n"
-                      "2. Navigate to your bot's OAuth2 > URL Generator\n"
-                      "3. Select 'bot' and 'applications.commands' scopes\n"
-                      "4. Select all required permissions above\n"
-                      "5. Use the generated URL to re-invite the bot\n"
-                      "6. Or manually grant permissions in server settings",
-                inline=False
+                name="🔑 Core Permissions",
+                value="\n".join(first_half),
+                inline=True
             )
+            
+            embed.add_field(
+                name="🔑 Additional Permissions", 
+                value="\n".join(second_half),
+                inline=True
+            )
+
+            # Add help text if there are missing permissions
+            if missing_count > 0:
+                embed.add_field(
+                    name="💡 How to Fix Missing Permissions",
+                    value="**Method 1 - Server Settings:**\n"
+                          "1. Go to Server Settings > Roles\n"
+                          "2. Find the bot's role or @everyone\n"
+                          "3. Grant the missing permissions\n\n"
+                          "**Method 2 - Re-invite Bot:**\n"
+                          "1. Go to Discord Developer Portal\n"
+                          "2. OAuth2 > URL Generator\n"
+                          "3. Select 'bot' + 'applications.commands'\n"
+                          "4. Select all required permissions\n"
+                          "5. Use generated URL to re-invite",
+                    inline=False
+                )
+
+            # Add administrator check
+            if permissions.administrator:
+                embed.add_field(
+                    name="👑 Administrator",
+                    value="✅ Bot has Administrator permissions (overrides all other permissions)",
+                    inline=False
+                )
 
             embed.timestamp = datetime.now(timezone.utc)
             await interaction.followup.send(embed=embed, ephemeral=True)

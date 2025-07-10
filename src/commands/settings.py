@@ -931,6 +931,25 @@ class AutoresponderSettingsView(discord.ui.View):
 @settings_group.command(name="embed-examples", description="Show JSON embed examples for autoresponder")
 async def embed_examples(interaction: discord.Interaction):
     """Show examples of JSON embed formats for autoresponder"""
+    # Check permissions
+    if not interaction.guild or not isinstance(interaction.user, discord.Member):
+        await interaction.response.send_message("❌ This command can only be used in a server.", ephemeral=True)
+        return
+
+    # Check for dev override first
+    has_permission = False
+    try:
+        from src.commands.dev import has_dev_override
+        if has_dev_override(interaction.user.id):
+            has_permission = True
+    except ImportError:
+        pass
+    
+    # Check manage_guild permission if no dev override
+    if not has_permission and not interaction.user.guild_permissions.manage_guild:
+        await interaction.response.send_message("❌ You need 'Manage Server' permission to use this command.", ephemeral=True)
+        return
+
     embed = discord.Embed(
         title="🎨 JSON Embed Examples for Autoresponder",
         description="Copy these JSON examples to create rich embed responses:",
@@ -1669,14 +1688,24 @@ async def settings_view(interaction: discord.Interaction):
         await interaction.response.send_message("❌ This command can only be used by server members.", ephemeral=True)
         return
 
-    if not interaction.user.guild_permissions.manage_guild:
+    # Check for dev override first
+    has_permission = False
+    try:
+        from src.commands.dev import has_dev_override
+        if has_dev_override(interaction.user.id):
+            has_permission = True
+    except ImportError:
+        pass
+    
+    # Check manage_guild permission if no dev override
+    if not has_permission and not interaction.user.guild_permissions.manage_guild:
         await interaction.response.send_message("❌ You need 'Manage Server' permission to use this command.", ephemeral=True)
         return
 
     # Create settings view
     view = SettingsView(interaction.guild.id)
     embed = await view._create_settings_embed(interaction.guild)
-    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+    await interaction.response.send_message(embed=embed, view=view, ephemeral=False)
 
 
 # Export the command group
