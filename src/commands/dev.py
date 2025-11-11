@@ -1,9 +1,11 @@
 """
 Development commands for debugging and testing
 """
+# pyright: reportAttributeAccessIssue=false, reportUnknownMemberType=false, reportMissingTypeStubs=false, reportGeneralTypeIssues=false
 import aiohttp
 import asyncio
 import discord
+from typing import Any
 import gc
 import logging
 import os
@@ -111,18 +113,10 @@ class DevPanelView(discord.ui.View):
 
     def __init__(self):
         super().__init__(timeout=300)  # 5 minute timeout
-        
-        # Set initial override button state
-        override_status = get_dev_override_status()
-        if override_status:
-            self.dev_override_button.style = discord.ButtonStyle.success
-            self.dev_override_button.label = "🔓 Override ON"
-        else:
-            self.dev_override_button.style = discord.ButtonStyle.danger
-            self.dev_override_button.label = "🔒 Override OFF"
+        # Initial override button styling will be handled on first toggle; default decorator label used.
 
     @discord.ui.button(label="🔄 Reload Engine", style=discord.ButtonStyle.primary, row=0)
-    async def reload_engine_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def reload_engine_button(self, interaction: discord.Interaction, button: Any):
         """Reload the anti-phishing engine"""
         if not is_dev_user(interaction.user.id):
             await interaction.response.send_message("❌ This action is restricted to developers.", ephemeral=True)
@@ -144,7 +138,7 @@ class DevPanelView(discord.ui.View):
             await interaction.followup.send(f"❌ Error reloading engine: {str(e)}", ephemeral=True)
 
     @discord.ui.button(label="🔄 Sync Commands", style=discord.ButtonStyle.success, row=0)
-    async def sync_commands_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def sync_commands_button(self, interaction: discord.Interaction, button: Any):
         """Sync slash commands to Discord"""
         if not is_dev_user(interaction.user.id):
             await interaction.response.send_message("❌ This action is restricted to developers.", ephemeral=True)
@@ -161,7 +155,7 @@ class DevPanelView(discord.ui.View):
             await interaction.followup.send(f"❌ Error syncing commands: {str(e)}", ephemeral=True)
 
     @discord.ui.button(label="📋 Guild Info", style=discord.ButtonStyle.secondary, row=0)
-    async def list_guilds_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def list_guilds_button(self, interaction: discord.Interaction, button: Any):
         """List all guilds the bot is connected to"""
         if not is_dev_user(interaction.user.id):
             await interaction.response.send_message("❌ This action is restricted to developers.", ephemeral=True)
@@ -1114,7 +1108,7 @@ class DevPanelView(discord.ui.View):
                 'send_messages': 'Send responses',
                 'embed_links': 'Send rich embeds',
                 'read_message_history': 'Read message content',
-                'use_slash_commands': 'Slash commands',
+                'use_application_commands': 'Slash commands',
                 'view_channel': 'View channels',
                 'read_messages': 'Read messages',
                 'send_messages_in_threads': 'Send messages in threads',
@@ -1208,5 +1202,65 @@ class DevPanelView(discord.ui.View):
             logger.error(f"Error checking bot permissions: {e}")
             await interaction.followup.send(f"❌ Permission check failed: {str(e)}", ephemeral=True)
 
+    # (report-netcraft command moved to top-level below)
+
 # Export the command group and dev override functions
 __all__ = ['dev_group', 'is_dev_user', 'has_dev_override', 'get_dev_override_status', 'track_error']
+
+# Top-level Netcraft report command (moved out of DevPanelView)
+@dev_group.command(name="report-netcraft", description="Report one or more URLs to Netcraft for analysis")
+@app_commands.describe(
+    email="Your email address to receive the report",
+    urls="One or more URLs to report (comma or space separated)",
+    reason="Optional reason for reporting (up to 10,000 chars)",
+    source="Optional source UUID if provided by Netcraft"
+)
+async def report_netcraft(interaction: discord.Interaction, email: str, urls: str, reason: str = "", source: str = ""):
+    """Report URLs to Netcraft for analysis"""
+    if not is_dev_user(interaction.user.id):
+        await interaction.response.send_message("❌ This command is restricted to developers.", ephemeral=True)
+        return
+
+    await interaction.response.defer(ephemeral=True)
+
+    # Parse URLs (comma or space separated)
+    url_list = [u.strip() for u in urls.replace(',', ' ').split() if u.strip()]
+    if not url_list:
+        await interaction.followup.send("❌ No valid URLs provided.", ephemeral=True)
+        return
+    if len(url_list) > 1000:
+        await interaction.followup.send("❌ Too many URLs (max 1000 per submission).", ephemeral=True)
+        return
+
+    payload = {"email": email, "urls": [{"url": u} for u in url_list]}
+    if reason:
+        payload["reason"] = reason[:10000]
+    if source:
+        payload["source"] = source
+
+    netcraft_url = "https://report.netcraft.com/api/v1/report/url"
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(netcraft_url, json=payload) as resp:
+                resp_json = await resp.json()
+                status = resp.status
+                message = resp_json.get("message", "No message returned.")
+                uuid = resp_json.get("uuid")
+
+        embed = discord.Embed(
+            title="Netcraft Report Submission",
+            color=discord.Color.green() if status == 200 else discord.Color.red(),
+            description=f"**Status:** {status}\n**Message:** {message}"
+        )
+        embed.add_field(name="URLs Reported", value=f"{len(url_list)} URL(s)", inline=True)
+        embed.add_field(name="Email", value=email, inline=True)
+        if uuid:
+            embed.add_field(name="Submission UUID", value=f"`{uuid}`", inline=False)
+            embed.set_footer(text="Use this UUID to monitor submission status.")
+        if reason:
+            embed.add_field(name="Reason", value=reason[:200] + ("..." if len(reason) > 200 else ""), inline=False)
+        await interaction.followup.send(embed=embed, ephemeral=True)
+    except Exception as e:
+        logger.error(f"Error reporting to Netcraft: {e}")
+        await interaction.followup.send(f"❌ Error reporting to Netcraft: {str(e)}", ephemeral=True)

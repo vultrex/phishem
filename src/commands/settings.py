@@ -17,7 +17,9 @@ from guild_config import (
     set_guild_autoresponder_use_embeds, get_guild_autoresponder_use_reply,
     set_guild_autoresponder_use_reply, set_guild_autoresponder_embed_config,
     add_autoresponder_rule, remove_autoresponder_rule, get_autoresponder_rules,
-    toggle_autoresponder_rule, get_guild_autoresponder_embed_config
+    toggle_autoresponder_rule, get_guild_autoresponder_embed_config,
+    set_guild_kill_zone_channel, set_guild_kill_zone_enabled,
+    get_guild_kill_zone_enabled, get_guild_kill_zone_channel
 )
 
 logger = logging.getLogger(__name__)
@@ -187,6 +189,22 @@ class SettingsView(discord.ui.View):
         embed = await autoresponder_view._create_autoresponder_embed(interaction.guild)
         await interaction.response.send_message(embed=embed, view=autoresponder_view, ephemeral=True)
 
+    @discord.ui.button(label="⚠️ Kill Zone Settings", style=discord.ButtonStyle.secondary, row=3)
+    async def kill_zone_settings_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Configure kill zone channel and toggle"""
+        if not self._check_permissions(interaction):
+            await interaction.response.send_message("❌ You need 'Manage Server' permission to use this.",
+                                                    ephemeral=True)
+            return
+
+        if not interaction.guild:
+            await interaction.response.send_message("❌ This can only be used in a server.", ephemeral=True)
+            return
+
+        view = KillZoneSettingsView(self.guild_id)
+        embed = await view._create_kill_zone_embed(interaction.guild)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
     async def _create_settings_embed(self, guild: discord.Guild) -> discord.Embed:
         """Create the detailed settings embed"""
         config = get_guild_full_config(guild.id)
@@ -263,6 +281,24 @@ class SettingsView(discord.ui.View):
             inline=True
         )
 
+        # Kill Zone
+        kill_zone_enabled = get_guild_kill_zone_enabled(guild.id)
+        kill_zone_channel_id = get_guild_kill_zone_channel(guild.id)
+        if kill_zone_enabled and kill_zone_channel_id:
+            channel = guild.get_channel(kill_zone_channel_id)
+            kz_text = f"✅ Enabled in {channel.mention if channel else f'ID: {kill_zone_channel_id}'}"
+        elif kill_zone_channel_id:
+            channel = guild.get_channel(kill_zone_channel_id)
+            kz_text = f"❌ Disabled (channel: {channel.mention if channel else f'ID: {kill_zone_channel_id}'})"
+        else:
+            kz_text = "❌ Disabled (no channel set)"
+
+        embed.add_field(
+            name="☠️ Kill Zone",
+            value=kz_text,
+            inline=True
+        )
+
         # Bypass Roles
         bypass_roles = get_guild_bypass_roles(guild.id)
         if bypass_roles:
@@ -304,6 +340,75 @@ class SettingsView(discord.ui.View):
         embed.set_footer(text="Use the buttons below to modify settings")
 
         return embed
+
+
+class KillZoneSettingsView(discord.ui.View):
+    """View providing controls to set/toggle kill zone"""
+
+    def __init__(self, guild_id: int):
+        super().__init__(timeout=300)
+        self.guild_id = guild_id
+
+        # Add a channel selector for text channels
+        self.add_item(KillZoneChannelSelect(self.guild_id))
+
+    async def _create_kill_zone_embed(self, guild: discord.Guild) -> discord.Embed:
+        enabled = get_guild_kill_zone_enabled(guild.id)
+        channel_id = get_guild_kill_zone_channel(guild.id)
+        channel = guild.get_channel(channel_id) if channel_id else None
+
+        desc = [
+            "Configure the Kill Zone — a dedicated channel where only privileged users can post."
+        ]
+        status = f"Status: {'✅ Enabled' if enabled else '❌ Disabled'}"
+        location = f"Channel: {channel.mention if channel else ('Not set' if not channel_id else f'ID: {channel_id}') }"
+
+        embed = discord.Embed(
+            title="☠️ Kill Zone Settings",
+            description="\n".join(desc + [status, location]),
+            color=discord.Color.orange()
+        )
+        return embed
+
+    @discord.ui.button(label="Enable", style=discord.ButtonStyle.success, row=1)
+    async def enable_kill_zone(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not interaction.guild:
+            await interaction.response.send_message("❌ This can only be used in a server.", ephemeral=True)
+            return
+        channel_id = get_guild_kill_zone_channel(self.guild_id)
+        if not channel_id:
+            await interaction.response.send_message("❌ Set a kill zone channel first.", ephemeral=True)
+            return
+        set_guild_kill_zone_enabled(self.guild_id, True)
+        await interaction.response.send_message("✅ Kill Zone enabled.", ephemeral=True)
+
+    @discord.ui.button(label="Disable", style=discord.ButtonStyle.danger, row=1)
+    async def disable_kill_zone(self, interaction: discord.Interaction, button: discord.ui.Button):
+        set_guild_kill_zone_enabled(self.guild_id, False)
+        await interaction.response.send_message("✅ Kill Zone disabled.", ephemeral=True)
+
+
+class KillZoneChannelSelect(discord.ui.ChannelSelect):
+    def __init__(self, guild_id: int):
+        super().__init__(
+            channel_types=[discord.ChannelType.text],
+            placeholder="Select a text channel for Kill Zone",
+            min_values=1,
+            max_values=1
+        )
+        self.guild_id = guild_id
+
+    async def callback(self, interaction: discord.Interaction):
+        if not interaction.guild:
+            await interaction.response.send_message("❌ This can only be used in a server.", ephemeral=True)
+            return
+        channel = self.values[0]
+        try:
+            set_guild_kill_zone_channel(self.guild_id, channel.id)
+            await interaction.response.send_message(f"✅ Kill Zone channel set to {channel.mention}.", ephemeral=True)
+        except Exception as e:
+            logger.error(f"Error setting kill zone channel: {e}")
+            await interaction.response.send_message("❌ Failed to set kill zone channel.", ephemeral=True)
 
 
 class TimeoutDurationModal(discord.ui.Modal, title="Set Timeout Duration"):
@@ -1706,6 +1811,70 @@ async def settings_view(interaction: discord.Interaction):
     view = SettingsView(interaction.guild.id)
     embed = await view._create_settings_embed(interaction.guild)
     await interaction.response.send_message(embed=embed, view=view, ephemeral=False)
+
+
+# Kill Zone subcommand group
+kill_zone_group = app_commands.Group(name="kill-zone", description="Configure Kill Zone settings")
+settings_group.add_command(kill_zone_group)
+
+
+def _has_settings_permission(interaction: discord.Interaction) -> bool:
+    """Shared permission check (manage_guild or dev override)"""
+    if not interaction.guild or not isinstance(interaction.user, discord.Member):
+        return False
+    try:
+        from src.commands.dev import has_dev_override
+        if has_dev_override(interaction.user.id):
+            return True
+    except ImportError:
+        pass
+    return interaction.user.guild_permissions.manage_guild
+
+
+@kill_zone_group.command(name="set", description="Set the Kill Zone channel (optionally enable)")
+@app_commands.describe(channel="Text channel to designate as the Kill Zone", enable="Enable Kill Zone after setting (default: True)")
+async def kill_zone_set(interaction: discord.Interaction, channel: discord.TextChannel, enable: Optional[bool] = True):
+    if not _has_settings_permission(interaction):
+        await interaction.response.send_message("❌ You need 'Manage Server' permission to configure this.", ephemeral=True)
+        return
+    if not interaction.guild:
+        await interaction.response.send_message("❌ This command must be used inside a server.", ephemeral=True)
+        return
+    try:
+        set_guild_kill_zone_channel(interaction.guild.id, channel.id)
+        if enable:
+            set_guild_kill_zone_enabled(interaction.guild.id, True)
+        status = "✅ Enabled" if enable else "❌ Disabled"
+        embed = discord.Embed(
+            title="☠️ Kill Zone Updated",
+            description=f"Channel set to {channel.mention}\nStatus: {status}",
+            color=discord.Color.orange()
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+    except Exception as e:
+        logger.error(f"Error setting kill zone: {e}")
+        await interaction.response.send_message("❌ Failed to update kill zone settings.", ephemeral=True)
+
+
+@kill_zone_group.command(name="disable", description="Disable the Kill Zone feature")
+async def kill_zone_disable(interaction: discord.Interaction):
+    if not _has_settings_permission(interaction):
+        await interaction.response.send_message("❌ You need 'Manage Server' permission to configure this.", ephemeral=True)
+        return
+    if not interaction.guild:
+        await interaction.response.send_message("❌ This command must be used inside a server.", ephemeral=True)
+        return
+    try:
+        set_guild_kill_zone_enabled(interaction.guild.id, False)
+        embed = discord.Embed(
+            title="☠️ Kill Zone Disabled",
+            description="The Kill Zone feature has been turned off.",
+            color=discord.Color.red()
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+    except Exception as e:
+        logger.error(f"Error disabling kill zone: {e}")
+        await interaction.response.send_message("❌ Failed to disable Kill Zone.", ephemeral=True)
 
 
 # Export the command group

@@ -11,7 +11,7 @@ SQL Databases can suck my fat cock
 
 def _get_conn():
     conn = sqlite3.connect(_DB_PATH)
-    # Create table with all columns
+    # Create table with all columns (extended with kill zone)
     conn.execute('''CREATE TABLE IF NOT EXISTS guild_config (
         guild_id TEXT PRIMARY KEY,
         action TEXT NOT NULL DEFAULT 'delete',
@@ -19,7 +19,9 @@ def _get_conn():
         timeout_duration INTEGER DEFAULT 5,
         anti_phish_enabled BOOLEAN DEFAULT 1,
         anti_malware_enabled BOOLEAN DEFAULT 1,
-        anti_piracy_enabled BOOLEAN DEFAULT 0
+        anti_piracy_enabled BOOLEAN DEFAULT 0,
+        kill_zone_channel_id TEXT DEFAULT NULL,
+        kill_zone_enabled BOOLEAN DEFAULT 0
     )''')
     
     # Ensure all columns exist (for database migration)
@@ -47,7 +49,9 @@ def _ensure_columns_exist(conn):
         'autoresponder_embed_title': 'TEXT DEFAULT ""',
         'autoresponder_embed_color': 'TEXT DEFAULT ""',
         'autoresponder_show_rule_name': 'BOOLEAN DEFAULT 1',
-        'autoresponder_custom_footer': 'TEXT DEFAULT ""'
+        'autoresponder_custom_footer': 'TEXT DEFAULT ""',
+        'kill_zone_channel_id': 'TEXT DEFAULT NULL',
+        'kill_zone_enabled': 'BOOLEAN DEFAULT 0'
     }
     
     for column, definition in required_columns.items():
@@ -177,7 +181,7 @@ def get_guild_full_config(guild_id: int) -> dict:
     """Get all configuration for a guild"""
     with _DB_LOCK:
         conn = _get_conn()
-        cur = conn.execute('''SELECT action, log_channel_id, timeout_duration, anti_phish_enabled, anti_malware_enabled, anti_piracy_enabled, bypass_role_ids, max_attempts, autoresponder_use_embeds, autoresponder_use_reply, autoresponder_embed_title, autoresponder_embed_color, autoresponder_show_rule_name, autoresponder_custom_footer
+        cur = conn.execute('''SELECT action, log_channel_id, timeout_duration, anti_phish_enabled, anti_malware_enabled, anti_piracy_enabled, bypass_role_ids, max_attempts, autoresponder_use_embeds, autoresponder_use_reply, autoresponder_embed_title, autoresponder_embed_color, autoresponder_show_rule_name, autoresponder_custom_footer, kill_zone_channel_id, kill_zone_enabled
                              FROM guild_config WHERE guild_id = ?''', (str(guild_id),))
         row = cur.fetchone()
         conn.close()
@@ -196,7 +200,9 @@ def get_guild_full_config(guild_id: int) -> dict:
                 'autoresponder_embed_title': row[10] or "",
                 'autoresponder_embed_color': row[11] or "",
                 'autoresponder_show_rule_name': bool(row[12]) if row[12] is not None else True,
-                'autoresponder_custom_footer': row[13] or ""
+                'autoresponder_custom_footer': row[13] or "",
+                'kill_zone_channel_id': int(row[14]) if row[14] else None,
+                'kill_zone_enabled': bool(row[15]) if row[15] is not None else False
             }
         else:
             return {
@@ -213,10 +219,54 @@ def get_guild_full_config(guild_id: int) -> dict:
                 'autoresponder_embed_title': "",
                 'autoresponder_embed_color': "",
                 'autoresponder_show_rule_name': True,
-                'autoresponder_custom_footer': ""
+                'autoresponder_custom_footer': "",
+                'kill_zone_channel_id': None,
+                'kill_zone_enabled': False
             }
 
-# New: Set/get bypass roles
+# Kill zone configuration
+
+def set_guild_kill_zone_channel(guild_id: int, channel_id: int):
+    with _DB_LOCK:
+        conn = _get_conn()
+        conn.execute('UPDATE guild_config SET kill_zone_channel_id = ? WHERE guild_id = ?', (str(channel_id), str(guild_id)))
+        if conn.total_changes == 0:
+            conn.execute('INSERT INTO guild_config (guild_id, action, kill_zone_channel_id) VALUES (?, ?, ?)', (str(guild_id), 'delete', str(channel_id)))
+        conn.commit()
+        conn.close()
+
+def get_guild_kill_zone_channel(guild_id: int) -> int | None:
+    with _DB_LOCK:
+        conn = _get_conn()
+        cur = conn.execute('SELECT kill_zone_channel_id FROM guild_config WHERE guild_id = ?', (str(guild_id),))
+        row = cur.fetchone()
+        conn.close()
+        if row and row[0]:
+            try:
+                return int(row[0])
+            except ValueError:
+                return None
+        return None
+
+def set_guild_kill_zone_enabled(guild_id: int, enabled: bool):
+    with _DB_LOCK:
+        conn = _get_conn()
+        conn.execute('UPDATE guild_config SET kill_zone_enabled = ? WHERE guild_id = ?', (1 if enabled else 0, str(guild_id)))
+        if conn.total_changes == 0:
+            conn.execute('INSERT INTO guild_config (guild_id, action, kill_zone_enabled) VALUES (?, ?, ?)', (str(guild_id), 'delete', 1 if enabled else 0))
+        conn.commit()
+        conn.close()
+
+def get_guild_kill_zone_enabled(guild_id: int) -> bool:
+    with _DB_LOCK:
+        conn = _get_conn()
+        cur = conn.execute('SELECT kill_zone_enabled FROM guild_config WHERE guild_id = ?', (str(guild_id),))
+        row = cur.fetchone()
+        conn.close()
+        if row and row[0] is not None:
+            return bool(row[0])
+        return False
+
 def set_guild_bypass_roles(guild_id: int, role_ids: list[int]):
     with _DB_LOCK:
         conn = _get_conn()
@@ -238,6 +288,7 @@ def get_guild_bypass_roles(guild_id: int) -> list[int]:
         return []
 
 # New: Set/get max attempts
+
 def set_guild_max_attempts(guild_id: int, max_attempts: int):
     with _DB_LOCK:
         conn = _get_conn()
@@ -259,6 +310,7 @@ def get_guild_max_attempts(guild_id: int) -> int:
 
 
 # New: Autoresponder format settings
+
 def set_guild_autoresponder_use_embeds(guild_id: int, use_embeds: bool):
     with _DB_LOCK:
         conn = _get_conn()
@@ -299,6 +351,7 @@ def get_guild_autoresponder_use_reply(guild_id: int) -> bool:
 
 
 # Autoresponder embed configuration
+
 def set_guild_autoresponder_embed_config(guild_id: int, title: str = "", color: str = "", show_rule_name: bool = True, custom_footer: str = ""):
     with _DB_LOCK:
         conn = _get_conn()
@@ -307,12 +360,12 @@ def set_guild_autoresponder_embed_config(guild_id: int, title: str = "", color: 
                        autoresponder_embed_color = ?, 
                        autoresponder_show_rule_name = ?, 
                        autoresponder_custom_footer = ? 
-                       WHERE guild_id = ?''', 
+                       WHERE guild_id = ?''',
                     (title, color, show_rule_name, custom_footer, str(guild_id)))
         if conn.total_changes == 0:
             conn.execute('''INSERT INTO guild_config 
                            (guild_id, action, autoresponder_embed_title, autoresponder_embed_color, autoresponder_show_rule_name, autoresponder_custom_footer) 
-                           VALUES (?, ?, ?, ?, ?, ?)''', 
+                           VALUES (?, ?, ?, ?, ?, ?)''',
                         (str(guild_id), 'delete', title, color, show_rule_name, custom_footer))
         conn.commit()
         conn.close()
@@ -341,6 +394,7 @@ def get_guild_autoresponder_embed_config(guild_id: int) -> Dict[str, Any]:
 
 
 # Autoresponder functionality
+
 def _get_autoresponder_conn():
     """Get database connection for autoresponder rules"""
     conn = sqlite3.connect(_DB_PATH)
@@ -357,10 +411,10 @@ def _get_autoresponder_conn():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(guild_id, rule_name)
     )''')
-    
+
     # Migrate existing autoresponder rules if needed
     _migrate_autoresponder_schema(conn)
-    
+
     # Create autoresponder cooldowns table
     conn.execute('''CREATE TABLE IF NOT EXISTS autoresponder_cooldowns (
         guild_id TEXT NOT NULL,
@@ -369,7 +423,7 @@ def _get_autoresponder_conn():
         last_triggered TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (guild_id, user_id, rule_id)
     )''')
-    
+
     return conn
 
 def _migrate_autoresponder_schema(conn):
@@ -379,7 +433,7 @@ def _migrate_autoresponder_schema(conn):
         cursor = conn.cursor()
         cursor.execute("PRAGMA table_info(autoresponder_rules)")
         columns = {row[1] for row in cursor.fetchall()}
-        
+
         if 'trigger_pattern' in columns and 'trigger_patterns' not in columns:
             print("Migrating autoresponder schema from trigger_pattern to trigger_patterns...")
             # Rename the old column to the new column name
@@ -389,8 +443,8 @@ def _migrate_autoresponder_schema(conn):
     except Exception as e:
         print(f"Schema migration failed or not needed: {e}")
 
-def add_autoresponder_rule(guild_id: int, rule_name: str, trigger_pattern: str, 
-                          response_message: str, is_regex: bool = False, 
+def add_autoresponder_rule(guild_id: int, rule_name: str, trigger_pattern: str,
+                          response_message: str, is_regex: bool = False,
                           case_sensitive: bool = False) -> bool:
     """Add a new autoresponder rule for a guild. Accepts trigger_pattern as a string or list of strings."""
     with _DB_LOCK:
@@ -400,144 +454,167 @@ def add_autoresponder_rule(guild_id: int, rule_name: str, trigger_pattern: str,
             if isinstance(trigger_pattern, list):
                 trigger_patterns = ','.join(trigger_pattern)
             else:
-                trigger_patterns = trigger_pattern
-            conn.execute('''INSERT INTO autoresponder_rules 
-                           (guild_id, rule_name, trigger_patterns, response_message, is_regex, case_sensitive)
-                           VALUES (?, ?, ?, ?, ?, ?)''',
-                        (str(guild_id), rule_name, trigger_patterns, response_message, is_regex, case_sensitive))
+                trigger_patterns = str(trigger_pattern)
+
+            conn.execute('''INSERT INTO autoresponder_rules (guild_id, rule_name, trigger_patterns, response_message, is_regex, is_enabled, case_sensitive)
+                         VALUES (?, ?, ?, ?, ?, 1, ?)''',
+                         (str(guild_id), rule_name, trigger_patterns, response_message, 1 if is_regex else 0, 1 if case_sensitive else 0))
             conn.commit()
             conn.close()
             return True
         except sqlite3.IntegrityError:
-            conn.close()
-            return False  # Rule name already exists
+            # Rule with this name already exists - update instead
+            try:
+                conn.execute('''UPDATE autoresponder_rules
+                             SET trigger_patterns = ?, response_message = ?, is_regex = ?, case_sensitive = ?
+                             WHERE guild_id = ? AND rule_name = ?''',
+                             (trigger_patterns, response_message, 1 if is_regex else 0, 1 if case_sensitive else 0, str(guild_id), rule_name))
+                conn.commit()
+                conn.close()
+                return True
+            except Exception as e:
+                print(f"Error updating autoresponder rule: {e}")
+                return False
+        except Exception as e:
+            print(f"Error adding autoresponder rule: {e}")
+            return False
 
-def remove_autoresponder_rule(guild_id: int, rule_name: str) -> bool:
-    """Remove an autoresponder rule from a guild"""
+def get_autoresponder_rules(guild_id: int) -> list[Dict[str, Any]]:
     with _DB_LOCK:
         conn = _get_autoresponder_conn()
-        cursor = conn.execute('DELETE FROM autoresponder_rules WHERE guild_id = ? AND rule_name = ?',
-                             (str(guild_id), rule_name))
-        changes = cursor.rowcount
-        conn.commit()
+        cur = conn.execute('''SELECT id, rule_name, trigger_patterns, response_message, is_regex, is_enabled, case_sensitive
+                             FROM autoresponder_rules WHERE guild_id = ? ORDER BY created_at DESC''', (str(guild_id),))
+        rows = cur.fetchall()
         conn.close()
-        return changes > 0
 
-def get_autoresponder_rules(guild_id: int) -> list[dict]:
-    """Get all autoresponder rules for a guild"""
-    with _DB_LOCK:
-        conn = _get_autoresponder_conn()
-        cursor = conn.execute('''SELECT id, rule_name, trigger_patterns, response_message, 
-                                is_regex, is_enabled, case_sensitive, created_at
-                                FROM autoresponder_rules 
-                                WHERE guild_id = ? AND is_enabled = 1
-                                ORDER BY rule_name''', (str(guild_id),))
-        rows = cursor.fetchall()
-        conn.close()
         rules = []
         for row in rows:
-            triggers = [t.strip() for t in row[2].split(',') if t.strip()]
+            triggers = [t.strip() for t in (row[2] or '').split(',') if t.strip()]
             rules.append({
                 'id': row[0],
                 'rule_name': row[1],
                 'trigger_patterns': triggers,
                 'response_message': row[3],
                 'is_regex': bool(row[4]),
-                'is_enabled': bool(row[5]),
-                'case_sensitive': bool(row[6]),
-                'created_at': row[7]
+                'enabled': bool(row[5]),
+                'case_sensitive': bool(row[6])
             })
         return rules
 
-def toggle_autoresponder_rule(guild_id: int, rule_name: str, enabled: bool) -> bool:
-    """Enable or disable an autoresponder rule"""
-    with _DB_LOCK:
-        conn = _get_autoresponder_conn()
-        cursor = conn.execute('UPDATE autoresponder_rules SET is_enabled = ? WHERE guild_id = ? AND rule_name = ?',
-                             (enabled, str(guild_id), rule_name))
-        changes = cursor.rowcount
-        conn.commit()
-        conn.close()
-        return changes > 0
-
 def get_autoresponder_rule_count(guild_id: int) -> int:
-    """Get the number of autoresponder rules for a guild"""
     with _DB_LOCK:
         conn = _get_autoresponder_conn()
-        cursor = conn.execute('SELECT COUNT(*) FROM autoresponder_rules WHERE guild_id = ?', (str(guild_id),))
-        count = cursor.fetchone()[0]
+        cur = conn.execute('SELECT COUNT(*) FROM autoresponder_rules WHERE guild_id = ?', (str(guild_id),))
+        row = cur.fetchone()
         conn.close()
-        return count
+        return int(row[0]) if row and row[0] else 0
 
 def check_autoresponder_cooldown(guild_id: int, user_id: int, rule_id: int, cooldown_seconds: int = 5) -> bool:
-    """Check if user is on cooldown for a specific rule"""
+    """Return True if user is still on cooldown for this rule (i.e., should NOT trigger)."""
     with _DB_LOCK:
         conn = _get_autoresponder_conn()
-        cursor = conn.execute('''SELECT last_triggered FROM autoresponder_cooldowns 
-                                WHERE guild_id = ? AND user_id = ? AND rule_id = ?''',
-                             (str(guild_id), str(user_id), rule_id))
-        row = cursor.fetchone()
-        
+        cur = conn.execute('''SELECT last_triggered FROM autoresponder_cooldowns
+                              WHERE guild_id = ? AND user_id = ? AND rule_id = ?''',
+                           (str(guild_id), str(user_id), rule_id))
+        row = cur.fetchone()
         if not row:
             conn.close()
-            return False  # No cooldown record, not on cooldown
-        
-        from datetime import datetime, timedelta
-        last_triggered = datetime.fromisoformat(row[0])
-        now = datetime.now()
-        conn.close()
-        
-        return (now - last_triggered).total_seconds() < cooldown_seconds
-
-def set_autoresponder_cooldown(guild_id: int, user_id: int, rule_id: int):
-    """Set cooldown for a user and rule"""
-    with _DB_LOCK:
-        conn = _get_autoresponder_conn()
-        conn.execute('''INSERT OR REPLACE INTO autoresponder_cooldowns 
-                       (guild_id, user_id, rule_id, last_triggered)
-                       VALUES (?, ?, ?, CURRENT_TIMESTAMP)''',
-                    (str(guild_id), str(user_id), rule_id))
-        conn.commit()
-        conn.close()
-
-def edit_autoresponder_rule(guild_id: int, rule_name: str, new_trigger_pattern: str | None = None, 
-                          new_response_message: str | None = None, new_is_regex: bool | None = None, 
-                          new_case_sensitive: bool | None = None, new_trigger_patterns: list[str] | None = None) -> bool:
-    """Edit an existing autoresponder rule for a guild. Accepts new_trigger_pattern (str), or new_trigger_patterns (list of str)."""
-    with _DB_LOCK:
+            return False  # No cooldown record
         try:
-            conn = _get_autoresponder_conn()
-            # Build dynamic update query based on provided parameters
-            update_fields = []
-            update_values = []
-            # Support both new_trigger_pattern (str) and new_trigger_patterns (list)
-            if new_trigger_patterns is not None:
-                triggers = ','.join(new_trigger_patterns)
-                update_fields.append("trigger_patterns = ?")
-                update_values.append(triggers)
-            elif new_trigger_pattern is not None:
-                update_fields.append("trigger_patterns = ?")
-                update_values.append(new_trigger_pattern)
-            if new_response_message is not None:
-                update_fields.append("response_message = ?")
-                update_values.append(new_response_message)
-            if new_is_regex is not None:
-                update_fields.append("is_regex = ?")
-                update_values.append(new_is_regex)
-            if new_case_sensitive is not None:
-                update_fields.append("case_sensitive = ?")
-                update_values.append(new_case_sensitive)
-            if not update_fields:
-                conn.close()
-                return False  # Nothing to update
-            # Add WHERE conditions
-            update_values.extend([str(guild_id), rule_name])
-            query = f"UPDATE autoresponder_rules SET {', '.join(update_fields)} WHERE guild_id = ? AND rule_name = ?"
-            cursor = conn.execute(query, update_values)
-            changes = cursor.rowcount
-            conn.commit()
+            last_ts = row[0]
+            # SQLite default CURRENT_TIMESTAMP format: YYYY-MM-DD HH:MM:SS
+            from datetime import datetime, timezone
+            last_dt = datetime.strptime(last_ts, '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
+            now = datetime.now(timezone.utc)
+            diff = (now - last_dt).total_seconds()
             conn.close()
-            return changes > 0
+            return diff < cooldown_seconds
         except Exception:
             conn.close()
             return False
+
+def set_autoresponder_cooldown(guild_id: int, user_id: int, rule_id: int):
+    """Set/update cooldown timestamp for a user and rule."""
+    with _DB_LOCK:
+        conn = _get_autoresponder_conn()
+        conn.execute('''INSERT OR REPLACE INTO autoresponder_cooldowns
+                        (guild_id, user_id, rule_id, last_triggered)
+                        VALUES (?, ?, ?, CURRENT_TIMESTAMP)''',
+                     (str(guild_id), str(user_id), rule_id))
+        conn.commit()
+        conn.close()
+
+def toggle_autoresponder_rule(guild_id: int, rule_name: str, enabled: bool) -> bool:
+    with _DB_LOCK:
+        try:
+            conn = _get_autoresponder_conn()
+            conn.execute('UPDATE autoresponder_rules SET is_enabled = ? WHERE guild_id = ? AND rule_name = ?',
+                         (1 if enabled else 0, str(guild_id), rule_name))
+            conn.commit()
+            success = conn.total_changes > 0
+            conn.close()
+            return success
+        except Exception as e:
+            print(f"Error toggling autoresponder rule: {e}")
+            return False
+
+def remove_autoresponder_rule(guild_id: int, rule_name: str) -> bool:
+    with _DB_LOCK:
+        try:
+            conn = _get_autoresponder_conn()
+            conn.execute('DELETE FROM autoresponder_rules WHERE guild_id = ? AND rule_name = ?', (str(guild_id), rule_name))
+            conn.commit()
+            success = conn.total_changes > 0
+            conn.close()
+            return success
+        except Exception as e:
+            print(f"Error removing autoresponder rule: {e}")
+            return False
+
+def edit_autoresponder_rule(guild_id: int, rule_name: str, new_trigger_pattern: str | None = None,
+                             new_response_message: str | None = None, new_is_regex: bool | None = None,
+                             new_case_sensitive: bool | None = None, new_trigger_patterns: list[str] | None = None) -> bool:
+    """Edit an existing autoresponder rule. Accepts either a single new_trigger_pattern or list new_trigger_patterns."""
+    with _DB_LOCK:
+        try:
+            conn = _get_autoresponder_conn()
+            # Verify rule exists
+            cur = conn.execute('''SELECT id, trigger_patterns, response_message, is_regex, case_sensitive
+                                  FROM autoresponder_rules WHERE guild_id = ? AND rule_name = ?''',
+                               (str(guild_id), rule_name))
+            row = cur.fetchone()
+            if not row:
+                conn.close()
+                return False
+
+            # Prepare updated values
+            current_trigger_patterns = row[1]
+            current_response = row[2]
+            current_is_regex = bool(row[3])
+            current_case_sensitive = bool(row[4])
+
+            # Handle trigger patterns
+            if new_trigger_patterns is not None and isinstance(new_trigger_patterns, list):
+                trigger_patterns_str = ','.join(new_trigger_patterns)
+            elif new_trigger_pattern is not None:
+                trigger_patterns_str = new_trigger_pattern
+            else:
+                trigger_patterns_str = current_trigger_patterns
+
+            response_message_final = new_response_message if new_response_message is not None else current_response
+            is_regex_final = 1 if (new_is_regex if new_is_regex is not None else current_is_regex) else 0
+            case_sensitive_final = 1 if (new_case_sensitive if new_case_sensitive is not None else current_case_sensitive) else 0
+
+            conn.execute('''UPDATE autoresponder_rules
+                            SET trigger_patterns = ?, response_message = ?, is_regex = ?, case_sensitive = ?
+                            WHERE guild_id = ? AND rule_name = ?''',
+                         (trigger_patterns_str, response_message_final, is_regex_final, case_sensitive_final,
+                          str(guild_id), rule_name))
+            conn.commit()
+            changes = conn.total_changes
+            conn.close()
+            return changes > 0
+        except Exception as e:
+            print(f"Error editing autoresponder rule: {e}")
+            return False
+

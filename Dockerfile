@@ -1,5 +1,5 @@
-# Use Python 3.11 slim image
-FROM python:3.11-slim
+# Use Python 3.13 slim image to match local runtime and support audioop-lts
+FROM python:3.13-slim
 
 # Set working directory
 WORKDIR /app
@@ -9,17 +9,22 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONPATH=/app:/app/src
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# Install system dependencies (build tools and SSL/FFI for wheels/compiles as fallback)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
     gcc \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+    libffi-dev \
+    libssl-dev \
+    ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
 COPY requirements.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Upgrade pip tooling and install dependencies
+RUN python -m pip install --upgrade pip setuptools wheel \
+ && pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .

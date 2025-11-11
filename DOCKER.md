@@ -139,26 +139,39 @@ Production container limits:
 
 ### Common Issues
 
-1. **Bot won't start**:
+1. **Bot won't start / build fails at requirements**:
    ```bash
-   # Check logs
-   docker-compose logs discord-bot
-   
-   # Verify environment
-   docker-compose config
+   # Inspect build output
+   docker compose build
+
+   # Common fix: clear build cache and rebuild
+   docker compose build --no-cache
+
+   # Verify environment variables expansion
+   docker compose config
    ```
 
-2. **Permission issues**:
+   If you see an error like:
+   `failed to solve: process "/bin/sh -c pip install --no-cache-dir -r requirements.txt" did not complete successfully`
+   it usually means one of:
+   - Temporary network issue pulling wheels (retry build)
+   - Missing build tool or system dependency (now resolved by added build-essential/libffi/libssl)
+   - Incompatible Python version vs pinned package (image updated to python:3.13-slim)
+   - A stale intermediate layer (use --no-cache)
+
+2. **Permission issues inside container**:
    ```bash
-   # Rebuild with no cache
-   docker-compose build --no-cache
+   docker compose exec discord-bot ls -l /app
+   docker compose exec discord-bot id
    ```
+   Ensure mounted files are readable; on Windows with WSL2, line endings generally fine.
 
 3. **Database issues**:
    ```bash
-   # Check if database file exists and has correct permissions
-   ls -la guild_config.db
+   docker compose exec discord-bot ls -la /app/guild_config.db
+   docker compose exec discord-bot file /app/guild_config.db || true
    ```
+   If missing, ensure volume mapping in compose file is correct.
 
 ### Health Checks
 
@@ -182,14 +195,19 @@ print('Health check passed!')
 
 To update the bot:
 
-```bash
-# Using helper script
-./docker-helper.sh update
-
-# Or manually
-git pull
 docker-compose build --no-cache
 docker-compose up -d
+```bash
+# Using helper script (Linux/macOS)
+./docker-helper.sh update
+
+# PowerShell (Windows)
+./docker-helper.ps1 update
+
+# Manual sequence
+git pull
+docker compose build --no-cache
+docker compose up -d
 ```
 
 ## Logs and Monitoring

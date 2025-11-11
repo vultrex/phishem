@@ -1,7 +1,6 @@
 import asyncio
 import discord
 import logging
-import socket
 
 try:
     import dns.resolver
@@ -10,15 +9,105 @@ except ImportError:
 import aiohttp
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Dict, Any
-from urllib.parse import urlparse
 from guild_config import (
     get_guild_action, get_guild_log_channel, get_guild_timeout_duration,
-    get_guild_anti_phish_enabled, get_guild_anti_malware_enabled, get_guild_anti_piracy_enabled
+    get_guild_anti_phish_enabled, get_guild_anti_malware_enabled, get_guild_anti_piracy_enabled,
+    get_guild_kill_zone_channel, get_guild_kill_zone_enabled, get_guild_bypass_roles
 )
-from optimizations import optimized_engine, performance_monitor, async_timed
+from src.optimizations import optimized_engine, performance_monitor, async_timed
 from src.features.autoresponder import autoresponder_engine
 
 logger = logging.getLogger(__name__)
+
+
+async def purge_user_messages_and_log(
+    guild: discord.Guild,
+    user_id: int,
+    batch_size: int = 200,
+    per_batch_sleep: float = 1.0,
+    reason: str = "Killzone cleanup"
+) -> int:
+    """Delete user messages across all text channels in batches to minimise rate limiting.
+
+    Uses TextChannel.purge with a check to bulk-delete recent messages where possible and
+    falls back to slower deletion for older messages. Adds small delays between batches.
+    """
+    total_deleted = 0
+    channels_scanned = 0
+
+    try:
+        log_channel_id = get_guild_log_channel(guild.id)
+        log_channel = guild.get_channel(log_channel_id) if log_channel_id else None
+
+        # Notify start (optional, only if log channel is set)
+        if log_channel and isinstance(log_channel, discord.TextChannel):
+            try:
+                start_embed = discord.Embed(
+                    title="🧹 Killzone Purge Started",
+                    description=f"Deleting past messages from <@{user_id}> across all channels...",
+                    color=discord.Color.orange(),
+                    timestamp=datetime.now(timezone.utc)
+                )
+                await log_channel.send(embed=start_embed)
+            except Exception:
+                pass
+
+        for channel in guild.text_channels:
+            try:
+                me = guild.me
+                if not me:
+                    continue
+                perms = channel.permissions_for(me)
+                if not (perms.view_channel and perms.read_message_history and perms.manage_messages):
+                    continue
+
+                channels_scanned += 1
+                # Batch purge loop
+                while True:
+                    try:
+                        deleted = await channel.purge(
+                            limit=batch_size,
+                            check=lambda m: m.author.id == user_id,
+                            bulk=True,
+                            reason=reason
+                        )
+                        count = len(deleted)
+                        total_deleted += count
+                        if count == 0:
+                            break
+                        # Short delay between batches to reduce 429s
+                        await asyncio.sleep(per_batch_sleep)
+                    except discord.HTTPException as e:
+                        # Backoff on rate limits or other HTTP errors
+                        logger.warning(f"Purge rate-limited or failed in #{channel.name}: {e}. Backing off...")
+                        await asyncio.sleep(max(per_batch_sleep * 2, 2.0))
+                    except Exception as e:
+                        logger.error(f"Error during purge in #{channel.name}: {e}")
+                        break
+
+            except Exception as e:
+                # Skip channels we cannot access or encountered unexpected error
+                logger.debug(f"Skipping channel purge in #{getattr(channel, 'name', 'unknown')}: {e}")
+                continue
+
+        # Final summary log
+        if log_channel and isinstance(log_channel, discord.TextChannel):
+            try:
+                done_embed = discord.Embed(
+                    title="✅ Killzone Purge Completed",
+                    description=f"Removed {total_deleted} message(s) from <@{user_id}>.",
+                    color=discord.Color.green(),
+                    timestamp=datetime.now(timezone.utc)
+                )
+                done_embed.add_field(name="Channels Scanned", value=str(channels_scanned), inline=True)
+                await log_channel.send(embed=done_embed)
+            except Exception:
+                pass
+
+    except Exception as e:
+        logger.error(f"Error purging user messages: {e}")
+
+    return total_deleted
 
 
 async def send_detection_log(message: discord.Message, analysis_result: Dict[str, Any], actions_taken: List[str]):
@@ -36,10 +125,14 @@ async def send_detection_log(message: discord.Message, analysis_result: Dict[str
         if not log_channel or not isinstance(log_channel, discord.TextChannel):
             return
 
-        # Determine threat type and emoji
+        # Determine threat type and emoji (with Kill Zone priority)
         threat_type = "Malicious Content"
         threat_emoji = "🚨"
-        if any("piracy" in source.lower() for source in analysis_result['sources']):
+        is_killzone = any("kill zone" in source.lower() for source in analysis_result['sources'])
+        if is_killzone:
+            threat_type = "Killzone ban"
+            threat_emoji = "☠️"
+        elif any("piracy" in source.lower() for source in analysis_result['sources']):
             threat_type = "Piracy Content"
             threat_emoji = "🏴‍☠️"
         elif any("phish" in source.lower() for source in analysis_result['sources']):
@@ -50,18 +143,21 @@ async def send_detection_log(message: discord.Message, analysis_result: Dict[str
             threat_emoji = "🦠"
 
         # Create detection embed
+        description_text = (
+            "Killzone ban executed for posting in the restricted channel."
+            if is_killzone else
+            "Malicious content has been detected and removed."
+        )
         embed = discord.Embed(
             title=f"🔍 Detection Log - {threat_type}",
-            description=f"Malicious content has been detected and removed.",
+            description=description_text,
             color=discord.Color.red(),
             timestamp=datetime.now(timezone.utc)
         )
         embed.add_field(name="User", value=message.author.mention, inline=True)
 
         # Safe channel mention
-        if isinstance(message.channel,
-                      (discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.ForumChannel,
-                       discord.Thread)):
+        if isinstance(message.channel, (discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.ForumChannel, discord.Thread)):
             channel_mention = message.channel.mention
         else:
             channel_mention = "DM or Unknown Channel"
@@ -443,6 +539,66 @@ async def on_message(bot, message):
     # Skip DMs for now
     if not message.guild:
         return
+
+    member = message.author if isinstance(message.author, discord.Member) else None
+
+    # Kill Zone enforcement: auto-ban accounts posting in configured channel unless elevated
+    try:
+        if get_guild_kill_zone_enabled(message.guild.id):
+            kz_channel_id = get_guild_kill_zone_channel(message.guild.id)
+            logger.debug(f"Kill Zone check: enabled=True, configured_channel={kz_channel_id}, current_channel={message.channel.id}")
+            if kz_channel_id and message.channel.id == kz_channel_id:
+                # Allow admins and moderators to post without penalty
+                if member and (member.guild_permissions.administrator or member.guild_permissions.manage_guild or member.guild_permissions.kick_members or member.guild_permissions.ban_members or member.guild_permissions.manage_messages):
+                    logger.debug("Kill zone message by privileged user; skipping ban")
+                else:
+                    # Allow bypass roles
+                    bypass_roles = set(get_guild_bypass_roles(message.guild.id))
+                    if member and any(role.id in bypass_roles for role in member.roles):
+                        logger.debug("Kill zone message by bypass role; skipping ban")
+                    else:
+                        # Attempt to delete and ban
+                        logger.info(f"Kill Zone triggered for user {message.author} ({message.author.id}) in channel {message.channel.id}")
+                        actions_taken = []
+                        try:
+                            await message.delete()
+                            actions_taken.append("Message deleted (kill zone)")
+                        except Exception:
+                            logger.warning("Failed to delete message in kill zone (insufficient perms?)")
+                        try:
+                            ban_reason = "Killzone ban"
+                            await message.author.ban(reason=ban_reason, delete_message_days=1)
+                            actions_taken.append("Killzone ban")
+                            logger.info(f"Kill Zone: Banned user {message.author} ({message.author.id}) in guild {message.guild.name}")
+                            # Start background purge of user's historical messages across the server
+                            try:
+                                asyncio.create_task(purge_user_messages_and_log(message.guild, message.author.id))
+                            except Exception as purge_err:
+                                logger.error(f"Failed to start purge task: {purge_err}")
+                        except discord.Forbidden:
+                            actions_taken.append("⚠️ Cannot ban user (missing permissions)")
+                            logger.error("Kill Zone: Missing permissions to ban user. Ensure bot has 'Ban Members' and role is above target user.")
+                        except discord.HTTPException:
+                            actions_taken.append("⚠️ Failed to ban user")
+                            logger.error("Kill Zone: HTTPException while trying to ban user.")
+
+                        # Send log
+                        try:
+                            await send_detection_log(
+                                message,
+                                {
+                                    'is_threat': True,
+                                    'domains': [],
+                                    'sources': ["Kill Zone: Restricted channel post"],
+                                    'api_results': {},
+                                },
+                                actions_taken
+                            )
+                        except Exception:
+                            pass
+                        return  # Do not process further
+    except Exception as e:
+        logger.error(f"Kill zone enforcement error: {e}")
 
     # Skip admin users by default (they bypass all protection)
     if isinstance(message.author, discord.Member):

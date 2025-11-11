@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  discord-bot:
+    build: .
+    container_name: phishing-detection-bot-dev
+    restart: unless-stopped
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - DEV=${DEV:-false}
+      - DEBUG=true
+      - LOG_LEVEL=${LOG_LEVEL:-DEBUG}
+      - PYTHONPATH=/app:/app/src
+    volumes:
+      # Database and persistent data
+      - ./data:/app/data
+      - ./guild_config.db:/app/guild_config.db
+      # Logs directory - use local directory for easier access
+      - ./logs:/app/logs
+      # Cache directory for blocklists
+      - bot-cache:/app/.cache
+      # Mount source code for development - live reloading
+      - ./src:/app/src:ro
+      - ./main.py:/app/main.py:ro
+      - ./guild_config.py:/app/guild_config.py:ro
+      - ./requirements.txt:/app/requirements.txt:ro
+    networks:
+      - bot-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "10"
+    # Enable interactive terminal for debugging
+    stdin_open: true
+    tty: true
+    # No resource limits for development
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.path.insert(0, '/app'); sys.path.insert(0, '/app/src'); import discord; from src.core.config import Config; print('Health check passed')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+networks:
+  bot-network:
+    driver: bridge
+
+volumes:
+  bot-cache:
+    driver: local
